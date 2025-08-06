@@ -144,10 +144,10 @@ async def get_market_data(
         eff_data = [market_eff(candle_data[:4], 4).tolist() for candle_data in all_candles]
         print(f"Efficiency data shape: {len(eff_data)} arrays, first array length: {len(eff_data[0]) if eff_data else 0}")
         
-        # Calculate statistics across all candle data
-        all_ohlc_data = np.concatenate([candle[:4] for candle in all_candles], axis=0)
-        std_devs = np.std(all_ohlc_data, axis=0).tolist()
-        medians = np.median(all_ohlc_data, axis=0).tolist()
+        # Calculate statistics across ZLEMA data only (exclude original candles)
+        zlema_ohlc_data = np.concatenate([candle[:4] for candle in all_candles[1:]], axis=0)  # Skip first element (original candles)
+        std_devs = np.std(zlema_ohlc_data, axis=0).tolist()
+        medians = np.median(zlema_ohlc_data, axis=0).tolist()
         
         return {
             "all_candles": [candle.tolist() for candle in all_candles],
