@@ -1,13 +1,16 @@
+import os
+import time
+from datetime import datetime, timedelta
+from typing import List, Optional, Dict, Any
+import numpy as np
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import List, Optional, Dict, Any
-import numpy as np
-from datetime import datetime, timedelta
-import time
+import feedparser
+import openai
 
 # Import your existing libraries
-from libs.tradelib import connect, get_price, put_order, close_trade, get_hist_prices
+from libs.tradelib import connect, get_price, put_order, close_trade, get_hist_prices, get_balance
 from libs.indicators import calc_HA, zlema_ochl, market_eff_win, calc_rsi
 
 app = FastAPI(title="ZLEMA Trader API", version="1.0.0")
@@ -317,15 +320,161 @@ def calculate_backtest_stats(trades):
     if not trades:
         return {"total_trades": 0, "win_rate": 0, "total_profit": 0}
     
-    profits = [trade['profit_pips'] for trade in trades]
-    wins = [p for p in profits if p > 0]
+    total_trades = len(trades)
+    winning_trades = len([t for t in trades if t['profit'] > 0])
+    win_rate = (winning_trades / total_trades) * 100 if total_trades > 0 else 0
+    total_profit = sum(t['profit'] for t in trades)
     
     return {
-        "total_trades": len(trades),
-        "win_rate": len(wins) / len(trades),
-        "total_profit": sum(profits),
-        "average_profit": np.mean(profits)
+        "total_trades": total_trades,
+        "win_rate": round(win_rate, 2),
+        "total_profit": round(total_profit, 2)
     }
+
+# News Feed and Sentiment Analysis Functions
+def analyze_news_impact(headline: str, currency_pair: str) -> Dict[str, str]:
+    """Analyze how a news headline might affect a specific currency pair using OpenAI"""
+    try:
+        # Get OpenAI API key from environment variable
+        api_key = os.getenv("OPENAI_API_KEY")
+        if not api_key:
+            return {
+                'impact': 'NEUTRAL',
+                'reasoning': 'OpenAI API key not configured',
+                'confidence': 'LOW'
+            }
+        
+        client = openai.OpenAI(api_key=api_key)
+        
+        prompt = f"""Analyze how this financial news headline might affect the {currency_pair} currency pair:
+
+Headline: "{headline}"
+
+Consider:
+1. Which currency in the pair is most affected by this news
+2. Whether this would likely cause {currency_pair} to strengthen or weaken
+3. The potential magnitude of impact (high/medium/low)
+
+Respond in this exact format:
+IMPACT: [BUY/SELL/NEUTRAL]
+REASONING: [Brief explanation]
+CONFIDENCE: [HIGH/MEDIUM/LOW]
+"""
+        
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=150,
+            temperature=0.3
+        )
+        
+        analysis = response.choices[0].message.content.strip()
+        
+        # Parse the response
+        lines = analysis.split('\n')
+        impact = "NEUTRAL"
+        reasoning = "Analysis unavailable"
+        confidence = "LOW"
+        
+        for line in lines:
+            if line.startswith('IMPACT:'):
+                impact = line.split(':', 1)[1].strip()
+            elif line.startswith('REASONING:'):
+                reasoning = line.split(':', 1)[1].strip()
+            elif line.startswith('CONFIDENCE:'):
+                confidence = line.split(':', 1)[1].strip()
+        
+        return {
+            'impact': impact,
+            'reasoning': reasoning,
+            'confidence': confidence
+        }
+        
+    except Exception as e:
+        return {
+            'impact': 'NEUTRAL',
+            'reasoning': f'Analysis failed: {str(e)}',
+            'confidence': 'LOW'
+        }
+
+def fetch_rss_feed(url: str, max_items: int = 5, currency_pair: str = None) -> List[Dict[str, Any]]:
+    """Fetch RSS feed and return formatted news items with AI analysis"""
+    try:
+        feed = feedparser.parse(url)
+        news_items = []
+        for entry in feed.entries[:max_items]:
+            # Clean up the title and description
+            title = entry.get('title', '')[:100] + '...' if len(entry.get('title', '')) > 100 else entry.get('title', '')
+            description = entry.get('summary', '')[:150] + '...' if len(entry.get('summary', '')) > 150 else entry.get('summary', '')
+            
+            # Extract date
+            published = entry.get('published', '')
+            if published:
+                try:
+                    date_obj = datetime(*entry.published_parsed[:6])
+                    date_str = date_obj.strftime('%H:%M')
+                except:
+                    date_str = published[:10]
+            else:
+                date_str = 'N/A'
+            
+            # Analyze impact if currency pair is provided
+            analysis = None
+            if currency_pair:
+                analysis = analyze_news_impact(title, currency_pair)
+            
+            news_items.append({
+                'title': title,
+                'description': description,
+                'link': entry.get('link', ''),
+                'published': date_str,
+                'analysis': analysis
+            })
+        return news_items
+    except Exception as e:
+        return [{'title': f'Error loading feed: {str(e)}', 'description': '', 'link': '', 'published': '', 'analysis': None}]
+
+@app.get("/api/news")
+async def get_news_feed(currency_pair: str = "GBP_USD", enable_ai_analysis: bool = True):
+    """Get news feed with sentiment analysis"""
+    try:
+        feeds = {
+            'CNBC': 'https://www.cnbc.com/id/100003114/device/rss/rss.html',
+            'MarketWatch': 'https://feeds.marketwatch.com/marketwatch/topstories/'
+        }
+        
+        all_news_items = []
+        for source, url in feeds.items():
+            news_items = fetch_rss_feed(url, max_items=4, currency_pair=currency_pair if enable_ai_analysis else None)
+            for item in news_items:
+                item['source'] = source
+                all_news_items.append(item)
+        
+        def sort_key(item):
+            if enable_ai_analysis and item.get('analysis'):
+                impact = item['analysis']['impact']
+                confidence = item['analysis']['confidence']
+                confidence_score = {'HIGH': 3, 'MEDIUM': 2, 'LOW': 1}.get(confidence, 0)
+                
+                # Priority: BUY/SELL first, then NEUTRAL
+                impact_priority = {'BUY': 3, 'SELL': 3, 'NEUTRAL': 1}.get(impact, 1)
+                
+                # Sort by: impact priority (high first), then confidence (high first), then time (newest first)
+                return (impact_priority, confidence_score, item.get('published', ''))
+            else:
+                return (1, 0, item.get('published', ''))  # No analysis = low priority
+        
+        all_news_items.sort(key=sort_key, reverse=True)
+        
+        return {
+            "news_items": all_news_items,
+            "currency_pair": currency_pair,
+            "enable_ai_analysis": enable_ai_analysis,
+            "timestamp": datetime.now().isoformat()
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch news: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn
