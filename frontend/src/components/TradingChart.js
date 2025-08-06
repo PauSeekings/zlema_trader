@@ -76,7 +76,7 @@ const TradingChart = ({ marketData }) => {
       mode: 'lines',
       y: medians,
       line: { color: 'white', width: 2, dash: 'dash' },
-      opacity: 0.7,
+      opacity: 0.2,
       xaxis: 'x',
       yaxis: 'y'
     });
