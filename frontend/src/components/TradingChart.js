@@ -106,7 +106,8 @@ const TradingChart = ({ marketData }) => {
       tickfont: { color: '#888888', size: 8 },
       title: { text: 'Efficiency', font: { color: '#888888', size: 10 } },
       fixedrange: true,
-      domain: [0.23, 0.33]
+      domain: [0.23, 0.33],
+      range: [-1.1, 1.1]
     },
     xaxis3: {
       showgrid: true,
@@ -122,7 +123,7 @@ const TradingChart = ({ marketData }) => {
       zeroline: false,
       showticklabels: true,
       tickfont: { color: '#888888', size: 8 },
-      title: { text: 'Std Dev', font: { color: '#888888', size: 10 } },
+      title: { text: 'RSI', font: { color: '#888888', size: 10 } },
       fixedrange: true,
       domain: [0.12, 0.22]
     },
@@ -142,7 +143,7 @@ const TradingChart = ({ marketData }) => {
       zeroline: false,
       showticklabels: true,
       tickfont: { color: '#888888', size: 8 },
-      title: { text: 'RSI', font: { color: '#888888', size: 10 } },
+      title: { text: 'Std Dev', font: { color: '#888888', size: 10 } },
       fixedrange: true,
       domain: [0, 0.11]
     }
@@ -221,21 +222,7 @@ const TradingChart = ({ marketData }) => {
     });
   }
 
-  // Add standard deviation subplot (row 3)
-  if (std_devs && std_devs.length > 0) {
-    subplotData.push({
-      type: 'bar',
-      y: std_devs,
-      marker: {
-        color: 'white',
-        opacity: 0.2
-      },
-      xaxis: 'x3',
-      yaxis: 'y3'
-    });
-  }
-
-  // Add RSI subplot (row 4)
+  // Add RSI subplot (row 3)
   if (rsi_data && rsi_data.length > 0) {
     // Plot individual RSI lines in white with low opacity
     rsi_data.forEach((rsi_values, i) => {
@@ -245,8 +232,8 @@ const TradingChart = ({ marketData }) => {
         y: rsi_values,
         line: { color: 'white', width: 1 },
         opacity: 0.2,
-        xaxis: 'x4',
-        yaxis: 'y4'
+        xaxis: 'x3',
+        yaxis: 'y3'
       });
     });
 
@@ -284,8 +271,8 @@ const TradingChart = ({ marketData }) => {
         width: 3
       },
       opacity: 0.8,
-      xaxis: 'x4',
-      yaxis: 'y4',
+      xaxis: 'x3',
+      yaxis: 'y3',
       name: 'Average RSI (Bullish)',
       showlegend: false
     });
@@ -300,10 +287,24 @@ const TradingChart = ({ marketData }) => {
         width: 3
       },
       opacity: 0.8,
-      xaxis: 'x4',
-      yaxis: 'y4',
+      xaxis: 'x3',
+      yaxis: 'y3',
       name: 'Average RSI (Bearish)',
       showlegend: false
+    });
+  }
+
+  // Add standard deviation subplot (row 4)
+  if (std_devs && std_devs.length > 0) {
+    subplotData.push({
+      type: 'bar',
+      y: std_devs,
+      marker: {
+        color: 'white',
+        opacity: 0.2
+      },
+      xaxis: 'x4',
+      yaxis: 'y4'
     });
   }
 
