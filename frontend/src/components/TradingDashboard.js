@@ -6,8 +6,12 @@ import {
   Typography,
   Alert,
   CircularProgress,
-  Button
+  Button,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails
 } from '@mui/material';
+import { ExpandMore } from '@mui/icons-material';
 import axios from 'axios';
 import TradingChart from './TradingChart';
 import TradeControls from './TradeControls';
@@ -77,7 +81,17 @@ const TradingDashboard = ({ tradingParams, setTradingParams }) => {
       fetchAccountStatus();
     }, 10000); // Refresh every 10 seconds
 
-    return () => clearInterval(interval);
+    // Listen for trade events from navigation
+    const handleTradePlaced = () => {
+      fetchTrades();
+      fetchAccountStatus();
+    };
+    window.addEventListener('tradePlaced', handleTradePlaced);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('tradePlaced', handleTradePlaced);
+    };
   }, [tradingParams]);
 
   const handleTrade = async (direction, size) => {
@@ -128,68 +142,58 @@ const TradingDashboard = ({ tradingParams, setTradingParams }) => {
           </Paper>
         </Grid>
 
-        {/* Right Column - Buy/Sell, Open Trades, Account Status & News */}
+        {/* Right Column - Trade Controls, Open Trades, Account Status & News */}
         <Grid item xs={12} md={3}>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, height: '100vh' }}>
-            {/* Buy/Sell Buttons */}
-            <Paper sx={{ p: 2 }}>
-              <Typography variant="h6" sx={{ color: 'primary.main', mb: 2 }}>
-                Trade Controls
-              </Typography>
-              <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
-                <Button
-                  variant="contained"
-                  color="success"
-                  fullWidth
-                  onClick={() => handleTrade('BUY', tradingParams.units || 1000)}
-                  sx={{ backgroundColor: '#4caf50' }}
-                >
-                  BUY
-                </Button>
-                <Button
-                  variant="contained"
-                  color="error"
-                  fullWidth
-                  onClick={() => handleTrade('SELL', tradingParams.units || 1000)}
-                  sx={{ backgroundColor: '#f44336' }}
-                >
-                  SELL
-                </Button>
-              </Box>
-            </Paper>
+            {/* Trade Controls */}
+            <TradeControls
+              tradingParams={tradingParams}
+              setTradingParams={setTradingParams}
+              onTrade={handleTrade}
+            />
 
-            {/* Open Trades */}
-            <Paper sx={{ p: 2, flexGrow: 1 }}>
-              <Typography variant="h6" sx={{ color: 'primary.main', mb: 2 }}>
-                Open Trades
-              </Typography>
-              {trades.length === 0 ? (
-                <Typography variant="body2" color="text.secondary">
-                  No open trades
+            {/* Open Trades - Expandable */}
+            <Accordion sx={{ backgroundColor: '#1a1a1a' }}>
+              <AccordionSummary
+                expandIcon={<ExpandMore sx={{ color: '#888888' }} />}
+                sx={{
+                  backgroundColor: '#1a1a1a',
+                  '& .MuiAccordionSummary-content': { margin: '8px 0' }
+                }}
+              >
+                <Typography variant="h6" sx={{ color: 'primary.main' }}>
+                  Open Trades ({trades.length})
                 </Typography>
-              ) : (
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                  {trades.map((trade) => (
-                    <Box key={trade.trade_id} sx={{ p: 1, border: '1px solid #333', borderRadius: 1 }}>
-                      <Typography variant="body2">
-                        {trade.pair} {trade.direction}
-                      </Typography>
-                      <Typography variant="body2" color={trade.current_pl >= 0 ? 'success.main' : 'error.main'}>
-                        P&L: {trade.current_pl} pips
-                      </Typography>
-                      <Button
-                        size="small"
-                        variant="outlined"
-                        onClick={() => handleCloseTrade(trade.trade_id)}
-                        sx={{ mt: 1 }}
-                      >
-                        Close
-                      </Button>
-                    </Box>
-                  ))}
-                </Box>
-              )}
-            </Paper>
+              </AccordionSummary>
+              <AccordionDetails sx={{ backgroundColor: '#1a1a1a', p: 2 }}>
+                {trades.length === 0 ? (
+                  <Typography variant="body2" color="text.secondary">
+                    No open trades
+                  </Typography>
+                ) : (
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                    {trades.map((trade) => (
+                      <Box key={trade.trade_id} sx={{ p: 1, border: '1px solid #333', borderRadius: 1 }}>
+                        <Typography variant="body2">
+                          {trade.pair} {trade.direction}
+                        </Typography>
+                        <Typography variant="body2" color={trade.current_pl >= 0 ? 'success.main' : 'error.main'}>
+                          P&L: {trade.current_pl} pips
+                        </Typography>
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          onClick={() => handleCloseTrade(trade.trade_id)}
+                          sx={{ mt: 1 }}
+                        >
+                          Close
+                        </Button>
+                      </Box>
+                    ))}
+                  </Box>
+                )}
+              </AccordionDetails>
+            </Accordion>
 
             {/* Account Status */}
             <AccountStatus status={accountStatus} />

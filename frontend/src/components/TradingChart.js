@@ -3,72 +3,45 @@ import Plot from 'react-plotly.js';
 import { Box, Typography } from '@mui/material';
 
 const TradingChart = ({ marketData }) => {
-  if (!marketData || !marketData.candles) {
+  if (!marketData || !marketData.all_candles) {
     return <Typography>Loading chart...</Typography>;
   }
 
   console.log('Market data received:', marketData);
-  const { candles, candles_transformed, ha_zlema_list, zlema_list, std_devs, medians, rsi_data, efficiencies, labels } = marketData;
+  const { all_candles, std_devs, medians, rsi_data, efficiencies, labels } = marketData;
 
   // Create subplots: 4 rows, shared x-axis
   const subplotData = [];
-  const xAxis = Array.from({ length: candles[0].length }, (_, i) => i);
+  const xAxis = Array.from({ length: all_candles[0][0].length }, (_, i) => i);
 
-  // Main candlestick chart (transformed data to match ZLEMA scale)
-  subplotData.push({
-    type: 'candlestick',
-    x: xAxis,
-    open: candles_transformed[0],
-    high: candles_transformed[2],
-    low: candles_transformed[3],
-    close: candles_transformed[1],
-    opacity: 0.5,
-    xaxis: 'x',
-    yaxis: 'y'
-  });
-
-  // Add HA ZLEMA candlesticks
-  ha_zlema_list.forEach((ha_zlema, i) => {
+  // Plot all candlesticks from all_candles
+  all_candles.forEach((candle, index) => {
+    const opacity = index === 0 ? 0.5 : 0.1; // Main data more visible
     subplotData.push({
       type: 'candlestick',
       x: xAxis,
-      open: ha_zlema[0],
-      high: ha_zlema[2],
-      low: ha_zlema[3],
-      close: ha_zlema[1],
-      opacity: 0.1,
+      open: candle[0],
+      high: candle[2],
+      low: candle[3],
+      close: candle[1],
+      opacity: opacity,
       xaxis: 'x',
       yaxis: 'y'
     });
   });
 
-  // Add ZLEMA candlesticks
-  zlema_list.forEach((zlema, i) => {
-    subplotData.push({
-      type: 'candlestick',
-      x: xAxis,
-      open: zlema[0],
-      high: zlema[2],
-      low: zlema[3],
-      close: zlema[1],
-      opacity: 0.1,
-      xaxis: 'x',
-      yaxis: 'y'
-    });
-  });
-
-  // Add close price line (using transformed data to match ZLEMA scale)
+  // Add close price line
   subplotData.push({
     type: 'scatter',
     mode: 'lines',
-    y: candles_transformed[1],
+    y: all_candles[0][1],
     line: { color: 'white', width: 4 },
     opacity: 0.5,
     xaxis: 'x',
     yaxis: 'y'
   });
 
-  // Add median line (using transformed data to match ZLEMA scale)
+  // Add median line
   if (medians) {
     subplotData.push({
       type: 'scatter',

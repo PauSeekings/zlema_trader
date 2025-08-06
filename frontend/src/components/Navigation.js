@@ -1,21 +1,36 @@
-import React from 'react';
-import { AppBar, Toolbar, Typography, Button, Box, Select, MenuItem, FormControl, InputLabel } from '@mui/material';
-import { TrendingUp, Assessment } from '@mui/icons-material';
-import { useNavigate, useLocation } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { AppBar, Toolbar, Typography, ToggleButton, ToggleButtonGroup, FormControl } from '@mui/material';
+import axios from 'axios';
 
-const Navigation = ({ tradingParams, setTradingParams }) => {
-  const navigate = useNavigate();
-  const location = useLocation();
+const Navigation = ({ tradingParams, setTradingParams, onTrade }) => {
+  const [accountMode, setAccountMode] = useState('test');
 
-  const currencyPairs = [
-    'GBP_USD', 'EUR_USD', 'USD_JPY', 'USD_CHF', 'AUD_USD', 'USD_CAD', 'NZD_USD'
-  ];
+  useEffect(() => {
+    // Fetch current account mode on component mount
+    fetchAccountMode();
+  }, []);
 
-  const timeframes = [
-    'M1', 'M5', 'M15', 'M30', 'H1', 'H4', 'D1'
-  ];
+  const fetchAccountMode = async () => {
+    try {
+      const response = await axios.get('/api/status');
+      setAccountMode(response.data.account_mode);
+    } catch (err) {
+      console.error('Failed to fetch account mode:', err);
+    }
+  };
 
-  const periods = [24, 48, 96, 192, 384];
+  const handleAccountModeChange = async (event, newMode) => {
+    if (newMode !== null) {
+      try {
+        await axios.post('/api/connect', null, {
+          params: { mode: newMode }
+        });
+        setAccountMode(newMode);
+      } catch (err) {
+        console.error('Failed to change account mode:', err);
+      }
+    }
+  };
 
   return (
     <AppBar position="static" sx={{ backgroundColor: '#1a1a1a' }}>
@@ -24,104 +39,40 @@ const Navigation = ({ tradingParams, setTradingParams }) => {
           ZLEMA Trader
         </Typography>
 
-        {/* Trading Controls */}
-        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexGrow: 1 }}>
-          <FormControl size="small" sx={{ minWidth: 120 }}>
-            <InputLabel sx={{ color: '#888888' }}>Pair</InputLabel>
-            <Select
-              value={tradingParams.pair}
-              onChange={(e) => setTradingParams({ ...tradingParams, pair: e.target.value })}
-              sx={{
-                color: '#888888',
-                '& .MuiOutlinedInput-notchedOutline': { borderColor: '#888888' },
-                '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#888888' },
-                '& .MuiSvgIcon-root': { color: '#888888' }
-              }}
-            >
-              {currencyPairs.map(pair => (
-                <MenuItem key={pair} value={pair}>{pair.replace('_', '/')}</MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+        <div style={{ flexGrow: 1 }} />
 
-          <FormControl size="small" sx={{ minWidth: 80 }}>
-            <InputLabel sx={{ color: '#888888' }}>TF</InputLabel>
-            <Select
-              value={tradingParams.timeframe}
-              onChange={(e) => setTradingParams({ ...tradingParams, timeframe: e.target.value })}
-              sx={{
-                color: '#888888',
-                '& .MuiOutlinedInput-notchedOutline': { borderColor: '#888888' },
-                '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#888888' },
-                '& .MuiSvgIcon-root': { color: '#888888' }
-              }}
-            >
-              {timeframes.map(tf => (
-                <MenuItem key={tf} value={tf}>{tf}</MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-
-          <FormControl size="small" sx={{ minWidth: 80 }}>
-            <InputLabel sx={{ color: '#888888' }}>Periods</InputLabel>
-            <Select
-              value={tradingParams.periods}
-              onChange={(e) => setTradingParams({ ...tradingParams, periods: e.target.value })}
-              sx={{
-                color: '#888888',
-                '& .MuiOutlinedInput-notchedOutline': { borderColor: '#888888' },
-                '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#888888' },
-                '& .MuiSvgIcon-root': { color: '#888888' }
-              }}
-            >
-              {periods.map(period => (
-                <MenuItem key={period} value={period}>{period}</MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-
-          <FormControl size="small" sx={{ minWidth: 100 }}>
-            <InputLabel sx={{ color: '#888888' }}>Units</InputLabel>
-            <Select
-              value={tradingParams.units || 1000}
-              onChange={(e) => setTradingParams({ ...tradingParams, units: e.target.value })}
-              sx={{
-                color: '#888888',
-                '& .MuiOutlinedInput-notchedOutline': { borderColor: '#888888' },
-                '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#888888' },
-                '& .MuiSvgIcon-root': { color: '#888888' }
-              }}
-            >
-              {[100, 500, 1000, 2000, 5000, 10000].map(unit => (
-                <MenuItem key={unit} value={unit}>{unit}</MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-        </Box>
-
-        {/* Navigation Buttons */}
-        <Box sx={{ display: 'flex', gap: 2 }}>
-          <Button
-            color="inherit"
-            startIcon={<TrendingUp />}
-            onClick={() => navigate('/')}
+        {/* TEST/LIVE Toggle */}
+        <FormControl size="small" sx={{ minWidth: '120px' }}>
+          <ToggleButtonGroup
+            value={accountMode}
+            exclusive
+            onChange={handleAccountModeChange}
+            size="small"
             sx={{
-              backgroundColor: location.pathname === '/' ? 'rgba(136, 136, 136, 0.2)' : 'transparent'
+              backgroundColor: '#1a1a1a',
+              '& .MuiToggleButton-root': {
+                color: '#888888',
+                borderColor: '#888888',
+                fontSize: '0.875rem',
+                padding: '8px 16px',
+                flex: 1,
+                '&.Mui-selected': {
+                  backgroundColor: '#4caf50',
+                  color: 'white',
+                  '&:hover': {
+                    backgroundColor: '#45a049',
+                  }
+                },
+                '&:hover': {
+                  backgroundColor: 'rgba(136, 136, 136, 0.1)',
+                }
+              }
             }}
           >
-            Live Trading
-          </Button>
-          <Button
-            color="inherit"
-            startIcon={<Assessment />}
-            onClick={() => navigate('/backtest')}
-            sx={{
-              backgroundColor: location.pathname === '/backtest' ? 'rgba(136, 136, 136, 0.2)' : 'transparent'
-            }}
-          >
-            Backtest
-          </Button>
-        </Box>
+            <ToggleButton value="test">TEST</ToggleButton>
+            <ToggleButton value="live">LIVE</ToggleButton>
+          </ToggleButtonGroup>
+        </FormControl>
       </Toolbar>
     </AppBar>
   );

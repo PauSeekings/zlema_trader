@@ -86,21 +86,18 @@ async def get_market_data(
         # Parse window lengths
         windows = [int(x) for x in window_lengths.split(",")]
         
-        # Get price data
+        # Get price data and scale to pips
         n_candles = periods + 50
         data = get_price(pair, timeframe, n_candles, exchange)
         display_data = data[:, -periods:]
         
-        # Transform data for indicators
-        display_data_transformed = display_data.copy()
-        display_data_transformed[:4] = (display_data_transformed[:4] - np.mean(display_data_transformed[:4])) * 10000
+        # Scale data to pips (multiply by 10000)
+        display_data[:4] = (display_data[:4] - np.mean(display_data[:4])) * 10000
         
         # Calculate indicators
-        ha = calc_HA(display_data_transformed)
-        # Take only the first 4 rows (Open, Close, High, Low) for ZLEMA calculation
-        ha_ochl = ha[:4]  # Remove volume data
-        ha_zlema_list = [zlema_ochl(ha_ochl, window) for window in windows]
-        zlema_list = [zlema_ochl(display_data_transformed[:4], window) for window in windows]
+        ha = calc_HA(display_data)
+        ha_zlema_list = [zlema_ochl(ha[:4], window) for window in windows]
+        zlema_list = [zlema_ochl(display_data[:4], window) for window in windows]
         
         # Calculate market efficiencies
         effs = []
@@ -110,19 +107,16 @@ async def get_market_data(
                 effs.append(market_eff_win(data[:, -12:]))
                 labels.append(f'{prefix} {i+1}')
         
-        # Calculate statistics using transformed data to match ZLEMA scale
-        std_devs = np.std(display_data_transformed[:4], axis=0).tolist()
-        medians = np.median(display_data_transformed[:4], axis=0).tolist()
+        # Calculate statistics
+        std_devs = np.std(display_data[:4], axis=0).tolist()
+        medians = np.median(display_data[:4], axis=0).tolist()
         
-        # Calculate Heikin Ashi data first, then RSI for each window length
-        ha_data = calc_HA(display_data)
-        rsi_data = [calc_rsi(ha_data, window).tolist() for window in windows]
+        # Calculate RSI for all candle data with fixed window of 4
+        all_candles = [display_data] + ha_zlema_list + zlema_list
+        rsi_data = [calc_rsi(candle_data[:4], 4).tolist() for candle_data in all_candles]
         
         return {
-            "candles": display_data.tolist(),
-            "candles_transformed": display_data_transformed.tolist(),
-            "ha_zlema_list": [ha.tolist() for ha in ha_zlema_list],
-            "zlema_list": [z.tolist() for z in zlema_list],
+            "all_candles": [candle.tolist() for candle in all_candles],
             "efficiencies": effs,
             "labels": labels,
             "std_devs": std_devs,
