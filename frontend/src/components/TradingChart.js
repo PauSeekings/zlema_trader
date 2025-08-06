@@ -8,7 +8,7 @@ const TradingChart = ({ marketData }) => {
   }
 
   console.log('Market data received:', marketData);
-  const { all_candles, std_devs, medians, rsi_data, efficiencies, labels } = marketData;
+  const { all_candles, std_devs, medians, rsi_data, eff_data } = marketData;
 
   // Create subplots: 4 rows, shared x-axis
   const subplotData = [];
@@ -149,23 +149,74 @@ const TradingChart = ({ marketData }) => {
   };
 
   // Add efficiency subplot (row 2)
-  if (efficiencies && efficiencies.length > 0) {
-    const avgEff = efficiencies.reduce((a, b) => a + b, 0) / efficiencies.length;
-    const allEffs = [...efficiencies, avgEff];
-    const allLabels = [...labels, 'Average'];
-    const allColors = allEffs.map(v => v > 0 ? 'green' : 'red');
-    const allOpacity = allEffs.map(v => Math.min(1, Math.max(0.2, Math.abs(v))));
+  if (eff_data && eff_data.length > 0) {
+    // Plot individual efficiency lines in white with low opacity
+    eff_data.forEach((eff_values, i) => {
+      subplotData.push({
+        type: 'scatter',
+        mode: 'lines',
+        y: eff_values,
+        line: { color: 'white', width: 1 },
+        opacity: 0.2,
+        xaxis: 'x2',
+        yaxis: 'y2'
+      });
+    });
 
+    // Calculate and plot average efficiency with conditional coloring
+    const effLength = eff_data[0].length;
+    const averageEff = [];
+
+    for (let i = 0; i < effLength; i++) {
+      const sum = eff_data.reduce((acc, eff_values) => acc + eff_values[i], 0);
+      const avg = sum / eff_data.length;
+      averageEff.push(avg);
+    }
+
+    // Split average efficiency into green and red segments
+    const greenSegments = [];
+    const redSegments = [];
+
+    for (let i = 0; i < averageEff.length; i++) {
+      if (averageEff[i] > 0) {
+        greenSegments.push(averageEff[i]);
+        redSegments.push(null);
+      } else {
+        greenSegments.push(null);
+        redSegments.push(averageEff[i]);
+      }
+    }
+
+    // Add green segments
     subplotData.push({
-      type: 'bar',
-      x: allLabels,
-      y: allEffs,
-      marker: {
-        color: allColors,
-        opacity: allOpacity
+      type: 'scatter',
+      mode: 'lines',
+      y: greenSegments,
+      line: {
+        color: 'green',
+        width: 3
       },
+      opacity: 0.8,
       xaxis: 'x2',
-      yaxis: 'y2'
+      yaxis: 'y2',
+      name: 'Average Efficiency (Positive)',
+      showlegend: false
+    });
+
+    // Add red segments
+    subplotData.push({
+      type: 'scatter',
+      mode: 'lines',
+      y: redSegments,
+      line: {
+        color: 'red',
+        width: 3
+      },
+      opacity: 0.8,
+      xaxis: 'x2',
+      yaxis: 'y2',
+      name: 'Average Efficiency (Negative)',
+      showlegend: false
     });
   }
 

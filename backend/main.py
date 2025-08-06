@@ -136,17 +136,12 @@ async def get_market_data(
         ha_zlema_list = [zlema_ochl(ha[:4], window) for window in windows]
         zlema_list = [zlema_ochl(display_data[:4], window) for window in windows]
         
-        # Calculate market efficiencies
-        effs = []
-        labels = []
-        for i, (ha_z, z_z) in enumerate(zip(ha_zlema_list, zlema_list)):
-            for data, prefix in [(ha_z, 'HA ZLEMA'), (z_z, 'ZLEMA')]:
-                effs.append(market_eff_win(data[:, -12:]))
-                labels.append(f'{prefix} {i+1}')
-        
         # Calculate RSI for all candle data with fixed window of 4
         all_candles = [display_data] + ha_zlema_list + zlema_list
         rsi_data = [calc_rsi(candle_data[:4], 4).tolist() for candle_data in all_candles]
+        
+        # Calculate market efficiency for all candle data with fixed window of 12
+        eff_data = [market_eff(candle_data[:4], 12).tolist() for candle_data in all_candles]
         
         # Calculate statistics across all candle data
         all_ohlc_data = np.concatenate([candle[:4] for candle in all_candles], axis=0)
@@ -155,8 +150,7 @@ async def get_market_data(
         
         return {
             "all_candles": [candle.tolist() for candle in all_candles],
-            "efficiencies": effs,
-            "labels": labels,
+            "eff_data": eff_data,
             "std_devs": std_devs,
             "medians": medians,
             "rsi_data": rsi_data,
