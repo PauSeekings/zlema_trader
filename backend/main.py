@@ -59,11 +59,41 @@ async def root():
 
 @app.get("/api/status")
 async def get_status():
-    return {
-        "account_mode": account_mode,
-        "open_trades_count": len(open_trades),
-        "total_profit": sum(profit_history) if profit_history else 0
-    }
+    try:
+        # Get account balance for real trading
+        account_balance = None
+        if account_mode != "practice" and exchange and accountID:
+            try:
+                account_info = exchange.get_account(accountID)
+                account_balance = float(account_info['balance'])
+            except:
+                account_balance = 0
+        
+        # Calculate trading stats
+        trading_stats = {}
+        if profit_history:
+            from libs.tradelib import update_stats_dict
+            trading_stats = update_stats_dict(profit_history)
+        
+        return {
+            "account_mode": account_mode,
+            "account_balance": account_balance,
+            "open_trades_count": len(open_trades),
+            "total_profit": sum(profit_history) if profit_history else 0,
+            "profit_history": profit_history[-50:] if profit_history else [],  # Last 50 trades
+            "total_trades": len(profit_history) if profit_history else 0,
+            "trading_stats": trading_stats
+        }
+    except Exception as e:
+        return {
+            "account_mode": account_mode,
+            "account_balance": 0,
+            "open_trades_count": len(open_trades),
+            "total_profit": sum(profit_history) if profit_history else 0,
+            "profit_history": profit_history[-50:] if profit_history else [],
+            "total_trades": len(profit_history) if profit_history else 0,
+            "trading_stats": {}
+        }
 
 @app.post("/api/connect")
 async def connect_account(mode: str):
@@ -107,13 +137,14 @@ async def get_market_data(
                 effs.append(market_eff_win(data[:, -12:]))
                 labels.append(f'{prefix} {i+1}')
         
-        # Calculate statistics
-        std_devs = np.std(display_data[:4], axis=0).tolist()
-        medians = np.median(display_data[:4], axis=0).tolist()
-        
         # Calculate RSI for all candle data with fixed window of 4
         all_candles = [display_data] + ha_zlema_list + zlema_list
         rsi_data = [calc_rsi(candle_data[:4], 4).tolist() for candle_data in all_candles]
+        
+        # Calculate statistics across all candle data
+        all_ohlc_data = np.concatenate([candle[:4] for candle in all_candles], axis=0)
+        std_devs = np.std(all_ohlc_data, axis=0).tolist()
+        medians = np.median(all_ohlc_data, axis=0).tolist()
         
         return {
             "all_candles": [candle.tolist() for candle in all_candles],
@@ -193,7 +224,10 @@ async def get_trades():
             else:
                 # Real trading P&L
                 current_price = get_price(trade['pair'], 'M5', 1, exchange)[1, -1]
-                pl = round((current_price - trade['entry_price']) * 10000 * np.sign(trade['size']), 2)
+                if trade['direction'] == 'BUY':
+                    pl = round((current_price - trade['entry_price']) * 10000, 2)
+                else:  # SELL
+                    pl = round((trade['entry_price'] - current_price) * 10000, 2)
             
             trades_with_pl.append({
                 **trade,

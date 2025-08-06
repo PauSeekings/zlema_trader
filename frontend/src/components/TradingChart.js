@@ -75,7 +75,7 @@ const TradingChart = ({ marketData }) => {
       showgrid: true,
       gridcolor: 'rgba(255, 255, 255, 0.05)',
       zeroline: false,
-      showticklabels: true,
+      showticklabels: false,
       tickfont: { color: '#888888', size: 10 },
       title: { text: 'Time', font: { color: '#888888', size: 12 } },
       fixedrange: true
@@ -172,11 +172,12 @@ const TradingChart = ({ marketData }) => {
   // Add standard deviation subplot (row 3)
   if (std_devs && std_devs.length > 0) {
     subplotData.push({
-      type: 'scatter',
-      mode: 'lines',
+      type: 'bar',
       y: std_devs,
-      line: { color: 'cyan', width: 2 },
-      opacity: 0.8,
+      marker: {
+        color: 'white',
+        opacity: 0.2
+      },
       xaxis: 'x3',
       yaxis: 'y3'
     });
@@ -184,18 +185,73 @@ const TradingChart = ({ marketData }) => {
 
   // Add RSI subplot (row 4)
   if (rsi_data && rsi_data.length > 0) {
-    const colors = ['white', 'red', 'green', 'blue', 'yellow', 'purple', 'orange', 'pink'];
+    // Plot individual RSI lines in white with low opacity
     rsi_data.forEach((rsi_values, i) => {
-      const color = colors[i % colors.length];
       subplotData.push({
         type: 'scatter',
         mode: 'lines',
         y: rsi_values,
-        line: { color: color, width: 1 },
-        opacity: 0.7,
+        line: { color: 'white', width: 1 },
+        opacity: 0.2,
         xaxis: 'x4',
         yaxis: 'y4'
       });
+    });
+
+    // Calculate and plot average RSI with conditional coloring
+    const rsiLength = rsi_data[0].length;
+    const averageRsi = [];
+
+    for (let i = 0; i < rsiLength; i++) {
+      const sum = rsi_data.reduce((acc, rsi_values) => acc + rsi_values[i], 0);
+      const avg = sum / rsi_data.length;
+      averageRsi.push(avg);
+    }
+
+    // Split average RSI into green and red segments
+    const greenSegments = [];
+    const redSegments = [];
+
+    for (let i = 0; i < averageRsi.length; i++) {
+      if (averageRsi[i] > 50) {
+        greenSegments.push(averageRsi[i]);
+        redSegments.push(null);
+      } else {
+        greenSegments.push(null);
+        redSegments.push(averageRsi[i]);
+      }
+    }
+
+    // Add green segments
+    subplotData.push({
+      type: 'scatter',
+      mode: 'lines',
+      y: greenSegments,
+      line: {
+        color: 'green',
+        width: 3
+      },
+      opacity: 0.8,
+      xaxis: 'x4',
+      yaxis: 'y4',
+      name: 'Average RSI (Bullish)',
+      showlegend: false
+    });
+
+    // Add red segments
+    subplotData.push({
+      type: 'scatter',
+      mode: 'lines',
+      y: redSegments,
+      line: {
+        color: 'red',
+        width: 3
+      },
+      opacity: 0.8,
+      xaxis: 'x4',
+      yaxis: 'y4',
+      name: 'Average RSI (Bearish)',
+      showlegend: false
     });
   }
 

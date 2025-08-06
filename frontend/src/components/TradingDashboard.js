@@ -16,7 +16,7 @@ import axios from 'axios';
 import TradingChart from './TradingChart';
 import TradeControls from './TradeControls';
 import AccountStatus from './AccountStatus';
-import NewsPanel from './NewsPanel';
+import CollapsibleSidebar from './CollapsibleSidebar';
 
 const TradingDashboard = ({ tradingParams, setTradingParams }) => {
   const [marketData, setMarketData] = useState(null);
@@ -101,7 +101,9 @@ const TradingDashboard = ({ tradingParams, setTradingParams }) => {
         size: size,
         direction: direction
       });
-      fetchTrades();
+
+      // Dispatch custom event for dashboard updates
+      window.dispatchEvent(new CustomEvent('tradePlaced'));
     } catch (err) {
       setError('Failed to place trade');
       console.error(err);
@@ -118,8 +120,23 @@ const TradingDashboard = ({ tradingParams, setTradingParams }) => {
     }
   };
 
+  const handleCloseAllTrades = async () => {
+    try {
+      for (const trade of trades) {
+        await axios.post(`/api/close-trade/${trade.trade_id}`);
+      }
+      fetchTrades();
+    } catch (err) {
+      setError('Failed to close all trades');
+      console.error(err);
+    }
+  };
+
   return (
     <Box sx={{ flexGrow: 1, height: '100vh', p: 0 }}>
+      {/* Collapsible Sidebar */}
+      <CollapsibleSidebar pair={tradingParams.pair} />
+
       {error && (
         <Alert severity="error" sx={{ mb: 1, mx: 1 }}>
           {error}
@@ -142,7 +159,7 @@ const TradingDashboard = ({ tradingParams, setTradingParams }) => {
           </Paper>
         </Grid>
 
-        {/* Right Column - Trade Controls, Open Trades, Account Status & News */}
+        {/* Right Column - Trade Controls, Open Trades, Account Status */}
         <Grid item xs={12} md={3}>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, height: '100vh' }}>
             {/* Trade Controls */}
@@ -152,28 +169,20 @@ const TradingDashboard = ({ tradingParams, setTradingParams }) => {
               onTrade={handleTrade}
             />
 
-            {/* Open Trades - Expandable */}
-            <Accordion sx={{ backgroundColor: '#1a1a1a' }}>
-              <AccordionSummary
-                expandIcon={<ExpandMore sx={{ color: '#888888' }} />}
-                sx={{
-                  backgroundColor: '#1a1a1a',
-                  '& .MuiAccordionSummary-content': { margin: '8px 0' }
-                }}
-              >
-                <Typography variant="h6" sx={{ color: 'primary.main' }}>
-                  Open Trades ({trades.length})
+            {/* Open Trades */}
+            <Paper sx={{ p: 2, backgroundColor: '#1a1a1a' }}>
+              <Typography variant="h6" sx={{ color: 'primary.main', mb: 2 }}>
+                Open Trades ({trades.length})
+              </Typography>
+              {trades.length === 0 ? (
+                <Typography variant="body2" color="text.secondary">
+                  No open trades
                 </Typography>
-              </AccordionSummary>
-              <AccordionDetails sx={{ backgroundColor: '#1a1a1a', p: 2 }}>
-                {trades.length === 0 ? (
-                  <Typography variant="body2" color="text.secondary">
-                    No open trades
-                  </Typography>
-                ) : (
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                    {trades.map((trade) => (
-                      <Box key={trade.trade_id} sx={{ p: 1, border: '1px solid #333', borderRadius: 1 }}>
+              ) : (
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                  {trades.map((trade) => (
+                    <Box key={trade.trade_id} sx={{ p: 1, border: '1px solid #333', borderRadius: 1 }}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <Typography variant="body2">
                           {trade.pair} {trade.direction}
                         </Typography>
@@ -184,22 +193,27 @@ const TradingDashboard = ({ tradingParams, setTradingParams }) => {
                           size="small"
                           variant="outlined"
                           onClick={() => handleCloseTrade(trade.trade_id)}
-                          sx={{ mt: 1 }}
                         >
                           Close
                         </Button>
                       </Box>
-                    ))}
-                  </Box>
-                )}
-              </AccordionDetails>
-            </Accordion>
+                    </Box>
+                  ))}
+                  <Button
+                    variant="contained"
+                    color="error"
+                    onClick={handleCloseAllTrades}
+                    sx={{ mt: 1 }}
+                    fullWidth
+                  >
+                    Close All
+                  </Button>
+                </Box>
+              )}
+            </Paper>
 
             {/* Account Status */}
             <AccountStatus status={accountStatus} />
-
-            {/* News Panel */}
-            <NewsPanel pair={tradingParams.pair} />
           </Box>
         </Grid>
       </Grid>
