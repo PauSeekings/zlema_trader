@@ -134,7 +134,7 @@ const TradingChart = ({ marketData }) => {
       title: { text: 'Efficiency', font: { color: '#888888', size: 10 } },
       fixedrange: true,
       domain: [0.23, 0.33],
-      range: [-2.0, 2.0]
+      range: [-1.0, 1.0]
     },
     xaxis3: {
       showgrid: true,
