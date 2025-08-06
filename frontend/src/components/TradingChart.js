@@ -52,7 +52,7 @@ const TradingChart = ({ marketData }) => {
       mode: 'lines',
       y: greenSegments,
       line: { color: 'green', width: 4 },
-      opacity: 0.7,
+      opacity: 0.2,
       xaxis: 'x',
       yaxis: 'y'
     });
@@ -63,7 +63,7 @@ const TradingChart = ({ marketData }) => {
       mode: 'lines',
       y: redSegments,
       line: { color: 'red', width: 4 },
-      opacity: 0.7,
+      opacity: 0.2,
       xaxis: 'x',
       yaxis: 'y'
     });
