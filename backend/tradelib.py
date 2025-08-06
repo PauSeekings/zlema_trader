@@ -74,16 +74,22 @@ def post_img(image_path, body):
 		res = requests.post(url, data= {"chat_id": chat_id, "caption": msg}, files={"photo": image_file})
    
 
+import os
+
 def connect(live_mode):
-    if  live_mode == 'test':
-        exchange = API(access_token="0ebe4aa69216956688a5cb6af0ecaf0d-ac8a81dbe9122842c513d1b277f423e6")
-        accountID = "101-003-15562766-002"
+    if live_mode == 'test':
+        api_key = os.getenv("OANDA_TEST_API_KEY")
+        accountID = os.getenv("OANDA_TEST_ACCOUNT_ID")
+        exchange = API(access_token=api_key)
     elif live_mode == 'live':
-        accountID = "001-003-5209814-005" 
-        exchange = API(access_token = "93657ebfcfcd3f007648d6b53ba81226-03599fa71d008b5c899f4b914d252366",  environment='live')
+        api_key = os.getenv("OANDA_LIVE_API_KEY")
+        accountID = os.getenv("OANDA_LIVE_ACCOUNT_ID")
+        exchange = API(access_token=api_key, environment='live')
     else:
-        exchange = API(access_token="0ebe4aa69216956688a5cb6af0ecaf0d-ac8a81dbe9122842c513d1b277f423e6")
-        accountID = "101-003-15562766-002"
+        # Default to test if mode is not recognized
+        api_key = os.getenv("OANDA_TEST_API_KEY")
+        accountID = os.getenv("OANDA_TEST_ACCOUNT_ID")
+        exchange = API(access_token=api_key)
     return exchange, accountID
 
 def parse_prices(candles):

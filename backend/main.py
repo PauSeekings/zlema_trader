@@ -8,6 +8,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import feedparser
 import openai
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Import your existing libraries
 from libs.tradelib import connect, get_price, put_order, close_trade, get_hist_prices, get_balance

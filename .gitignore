@@ -72,4 +72,4 @@ logs/
 
 # OANDA API keys (if any)
 *.key
-api_keys.txt 
+api_keys.txt .env
