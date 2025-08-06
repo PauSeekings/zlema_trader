@@ -2,22 +2,36 @@ import React from 'react';
 import Plot from 'react-plotly.js';
 import { Box, Typography } from '@mui/material';
 
-const TradingChart = ({ marketData }) => {
+const TradingChart = ({ marketData, keyLevels, overlaySettings }) => {
   if (!marketData || !marketData.all_candles) {
     return <Typography>Loading chart...</Typography>;
   }
 
+  // Ensure overlaySettings has default values
+  const defaultOverlaySettings = {
+    support: true,
+    resistance: true,
+    volume: false,
+    fibonacci: false,
+    pivots: false,
+    ...overlaySettings
+  };
+
   console.log('Market data received:', marketData);
+  console.log('Key levels received:', keyLevels);
+  console.log('Overlay settings received:', overlaySettings);
   const { all_candles, std_devs, medians, rsi_data, eff_data } = marketData;
 
   // Create subplots: 4 rows, shared x-axis
   const subplotData = [];
+  const data = []; // Main data array for candlesticks and key levels
+  const keyLevelsData = []; // Separate array for key levels (plotted first)
   const xAxis = Array.from({ length: all_candles[0][0].length }, (_, i) => i);
 
-  // Plot all candlesticks from all_candles
+  // Plot all candlesticks from all_candles (main plot)
   all_candles.forEach((candle, index) => {
     const opacity = index === 0 ? 0.5 : 0.1; // Main data more visible
-    subplotData.push({
+    data.push({
       type: 'candlestick',
       x: xAxis,
       open: candle[0],
@@ -26,7 +40,8 @@ const TradingChart = ({ marketData }) => {
       close: candle[1],
       opacity: opacity,
       xaxis: 'x',
-      yaxis: 'y'
+      yaxis: 'y',
+      layer: 'above' // Ensure candlesticks are above key levels
     });
   });
 
@@ -47,38 +62,93 @@ const TradingChart = ({ marketData }) => {
     }
 
     // Add green segments (above median)
-    subplotData.push({
+    data.push({
       type: 'scatter',
       mode: 'lines',
       y: greenSegments,
       line: { color: 'green', width: 4 },
       opacity: 0.5,
       xaxis: 'x',
-      yaxis: 'y'
+      yaxis: 'y',
+      layer: 'above' // Ensure this is above key levels
     });
 
     // Add red segments (below median)
-    subplotData.push({
+    data.push({
       type: 'scatter',
       mode: 'lines',
       y: redSegments,
       line: { color: 'red', width: 4 },
       opacity: 0.5,
       xaxis: 'x',
-      yaxis: 'y'
+      yaxis: 'y',
+      layer: 'above' // Ensure this is above key levels
     });
   }
 
   // Add median line
   if (medians) {
-    subplotData.push({
+    data.push({
       type: 'scatter',
       mode: 'lines',
       y: medians,
       line: { color: 'white', width: 2, dash: 'dash' },
       opacity: 0.2,
       xaxis: 'x',
-      yaxis: 'y'
+      yaxis: 'y',
+      layer: 'above' // Ensure this is above key levels
+    });
+  }
+
+  // Helper function to get color based on level type
+  const getLevelColor = (type) => {
+    switch (type) {
+      case 'support': return '#00ff00'; // Green
+      case 'resistance': return '#ff0000'; // Red
+      case 'volume': return '#ffff00'; // Yellow
+      case 'fibonacci': return '#00ffff'; // Cyan
+      case 'pivots': return '#ff00ff'; // Magenta
+      default: return '#ffffff'; // White
+    }
+  };
+
+  // Add key levels as horizontal lines (behind main plot)
+  if (keyLevels && keyLevels.key_levels && keyLevels.key_levels.levels && Array.isArray(keyLevels.key_levels.levels)) {
+    const levels = keyLevels.key_levels.levels;
+
+    levels.forEach((level, index) => {
+      // Check if level has required properties
+      if (!level || typeof level.type !== 'string' || typeof level.price !== 'number') {
+        return;
+      }
+
+      // Check if this level type should be displayed
+      if (!defaultOverlaySettings[level.type]) return;
+
+      const color = getLevelColor(level.type);
+      const dash = level.type === 'fibonacci' ? 'dot' : 'solid';
+
+      // Ensure xAxis has valid length
+      if (xAxis && xAxis.length > 0) {
+        // Add to key levels data array (plotted first, behind everything)
+        keyLevelsData.push({
+          type: 'scatter',
+          mode: 'lines',
+          x: [0, xAxis.length - 1],
+          y: [level.price, level.price],
+          line: {
+            color: color,
+            width: 2,
+            dash: dash
+          },
+          opacity: 0.5, // 50% opacity
+          xaxis: 'x',
+          yaxis: 'y',
+          name: `${level.type} (${level.price.toFixed(4)})`,
+          showlegend: false,
+          layer: 'below' // Ensure this is plotted behind everything
+        });
+      }
     });
   }
 
@@ -335,13 +405,18 @@ const TradingChart = ({ marketData }) => {
     });
   }
 
+  // Combine data with key levels first (behind everything), then candlesticks, then indicators
+  const combinedData = [...keyLevelsData, ...data, ...subplotData];
+
+  console.log('Main data:', data);
   console.log('Subplot data:', subplotData);
+  console.log('Combined data:', combinedData);
   console.log('Layout:', layout);
 
   return (
     <Box>
       <Plot
-        data={subplotData}
+        data={combinedData}
         layout={layout}
         config={{
           displayModeBar: false,

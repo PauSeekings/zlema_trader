@@ -15,7 +15,7 @@ load_dotenv()
 
 # Import your existing libraries
 from libs.tradelib import connect, get_price, put_order, close_trade, get_hist_prices, get_balance
-from libs.indicators import calc_HA, zlema_ochl, market_eff_win, calc_rsi, market_eff
+from libs.indicators import calc_HA, zlema_ochl, market_eff_win, calc_rsi, market_eff, key_levels_composite
 
 app = FastAPI(title="ZLEMA Trader API", version="1.0.0")
 
@@ -162,6 +162,63 @@ async def get_market_data(
         }
     except Exception as e:
         print(f"Error in market data endpoint: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/key-levels")
+async def get_key_levels(
+    pair: str = "GBP_USD",
+    timeframe: str = "M5", 
+    periods: int = 48,  # Match market-data default
+    window: int = 20,
+    threshold: float = 0.001
+):
+    try:
+        # Get price data - use same logic as market-data endpoint
+        n_candles = periods + 50
+        data = get_price(pair, timeframe, n_candles, exchange)
+        display_data = data[:, -periods:]
+        
+        # Extract price and volume data
+        prices = display_data[:4]  # OCHL
+        volume = display_data[4] if len(display_data) > 4 else np.ones(periods)
+        
+        # Scale prices to pips (EXACTLY same as market-data endpoint)
+        prices_scaled = (prices - np.mean(prices)) * 10000
+        
+        # Calculate key levels using scaled prices
+        # Adjust threshold for pip scaling (threshold was in price units, now in pips)
+        threshold_pips = threshold * 10000
+        key_levels = key_levels_composite(prices_scaled, volume, window, threshold_pips)
+        
+        # Convert numpy arrays to lists for JSON serialization
+        def convert_numpy(obj):
+            if isinstance(obj, np.ndarray):
+                return obj.tolist()
+            elif isinstance(obj, dict):
+                return {k: convert_numpy(v) for k, v in obj.items()}
+            elif isinstance(obj, list):
+                return [convert_numpy(item) for item in obj]
+            elif isinstance(obj, np.integer):
+                return int(obj)
+            elif isinstance(obj, np.floating):
+                return float(obj)
+            return obj
+        
+        key_levels = convert_numpy(key_levels)
+        
+        return {
+            "key_levels": key_levels,
+            "pair": pair,
+            "timeframe": timeframe,
+            "periods": periods,
+            "window": window,
+            "threshold": threshold,
+            "timestamp": datetime.now().isoformat()
+        }
+    except Exception as e:
+        print(f"Error in key levels endpoint: {str(e)}")
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
