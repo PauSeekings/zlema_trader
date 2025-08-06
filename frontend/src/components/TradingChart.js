@@ -30,16 +30,44 @@ const TradingChart = ({ marketData }) => {
     });
   });
 
-  // Add close price line
-  subplotData.push({
-    type: 'scatter',
-    mode: 'lines',
-    y: all_candles[0][1],
-    line: { color: 'white', width: 4 },
-    opacity: 0.5,
-    xaxis: 'x',
-    yaxis: 'y'
-  });
+  // Add close price line with conditional coloring based on median
+  if (medians && all_candles[0][1]) {
+    const closePrices = all_candles[0][1];
+    const greenSegments = [];
+    const redSegments = [];
+
+    for (let i = 0; i < closePrices.length; i++) {
+      if (closePrices[i] > medians[i]) {
+        greenSegments.push(closePrices[i]);
+        redSegments.push(null);
+      } else {
+        greenSegments.push(null);
+        redSegments.push(closePrices[i]);
+      }
+    }
+
+    // Add green segments (above median)
+    subplotData.push({
+      type: 'scatter',
+      mode: 'lines',
+      y: greenSegments,
+      line: { color: 'green', width: 4 },
+      opacity: 0.7,
+      xaxis: 'x',
+      yaxis: 'y'
+    });
+
+    // Add red segments (below median)
+    subplotData.push({
+      type: 'scatter',
+      mode: 'lines',
+      y: redSegments,
+      line: { color: 'red', width: 4 },
+      opacity: 0.7,
+      xaxis: 'x',
+      yaxis: 'y'
+    });
+  }
 
   // Add median line
   if (medians) {
