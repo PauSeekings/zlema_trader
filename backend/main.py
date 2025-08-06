@@ -15,7 +15,7 @@ load_dotenv()
 
 # Import your existing libraries
 from libs.tradelib import connect, get_price, put_order, close_trade, get_hist_prices, get_balance
-from libs.indicators import calc_HA, zlema_ochl, market_eff_win, calc_rsi
+from libs.indicators import calc_HA, zlema_ochl, market_eff_win, calc_rsi, market_eff
 
 app = FastAPI(title="ZLEMA Trader API", version="1.0.0")
 
