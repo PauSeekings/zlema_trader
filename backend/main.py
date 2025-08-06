@@ -140,8 +140,8 @@ async def get_market_data(
         all_candles = [display_data] + ha_zlema_list + zlema_list
         rsi_data = [calc_rsi(candle_data[:4], 4).tolist() for candle_data in all_candles]
         
-        # Calculate market efficiency for all candle data with fixed window of 12
-        eff_data = [market_eff(candle_data[:4], 12).tolist() for candle_data in all_candles]
+        # Calculate market efficiency for all candle data with fixed window of 4
+        eff_data = [market_eff(candle_data[:4], 4).tolist() for candle_data in all_candles]
         print(f"Efficiency data shape: {len(eff_data)} arrays, first array length: {len(eff_data[0]) if eff_data else 0}")
         
         # Calculate statistics across all candle data
