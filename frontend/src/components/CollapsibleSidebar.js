@@ -52,7 +52,7 @@ const CollapsibleSidebar = ({ pair }) => {
     }
   }, [isOpen, pair]);
 
-  const sidebarWidth = 320; // Match the right column width (md={3} = 25% of 12 columns)
+  const sidebarWidth = 350; // Match the right column width (md={3} = 25% of 12 columns)
 
   const getImpactColor = (impact) => {
     switch (impact) {
