@@ -64,9 +64,9 @@ async def get_status():
         account_balance = None
         if account_mode != "practice" and exchange and accountID:
             try:
-                account_info = exchange.get_account(accountID)
-                account_balance = float(account_info['balance'])
-            except:
+                from libs.tradelib import get_balance
+                account_balance = get_balance(exchange, accountID)
+            except Exception as e:
                 account_balance = 0
         
         # Calculate trading stats
