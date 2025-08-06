@@ -73,7 +73,7 @@ const TradeControls = ({ tradingParams, setTradingParams, onTrade }) => {
         <Grid item xs={4}>
           <FormControl size="small" fullWidth>
             <Select
-              value={tradingParams.units || 1000}
+              value={tradingParams.units || 10000}
               onChange={(e) => setTradingParams({ ...tradingParams, units: e.target.value })}
               displayEmpty
               sx={{
@@ -84,8 +84,8 @@ const TradeControls = ({ tradingParams, setTradingParams, onTrade }) => {
                 '& .MuiSvgIcon-root': { color: '#888888' }
               }}
             >
-              {[100, 500, 1000, 2000, 5000, 10000].map(unit => (
-                <MenuItem key={unit} value={unit} sx={{ fontSize: '0.875rem' }}>{unit}</MenuItem>
+              {[10000, 20000, 30000, 40000, 50000, 60000, 70000, 80000, 90000, 100000].map(unit => (
+                <MenuItem key={unit} value={unit} sx={{ fontSize: '0.875rem' }}>{unit.toLocaleString()}</MenuItem>
               ))}
             </Select>
           </FormControl>
@@ -96,7 +96,7 @@ const TradeControls = ({ tradingParams, setTradingParams, onTrade }) => {
               variant="contained"
               color="success"
               fullWidth
-              onClick={() => onTrade && onTrade('BUY', tradingParams.units || 1000)}
+              onClick={() => onTrade && onTrade('BUY', tradingParams.units || 10000)}
               sx={{ backgroundColor: '#4caf50' }}
             >
               BUY
@@ -105,7 +105,7 @@ const TradeControls = ({ tradingParams, setTradingParams, onTrade }) => {
               variant="contained"
               color="error"
               fullWidth
-              onClick={() => onTrade && onTrade('SELL', tradingParams.units || 1000)}
+              onClick={() => onTrade && onTrade('SELL', tradingParams.units || 10000)}
               sx={{ backgroundColor: '#f44336' }}
             >
               SELL
