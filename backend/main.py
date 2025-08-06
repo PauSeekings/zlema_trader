@@ -142,6 +142,7 @@ async def get_market_data(
         
         # Calculate market efficiency for all candle data with fixed window of 12
         eff_data = [market_eff(candle_data[:4], 12).tolist() for candle_data in all_candles]
+        print(f"Efficiency data shape: {len(eff_data)} arrays, first array length: {len(eff_data[0]) if eff_data else 0}")
         
         # Calculate statistics across all candle data
         all_ohlc_data = np.concatenate([candle[:4] for candle in all_candles], axis=0)

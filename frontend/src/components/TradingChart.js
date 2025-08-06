@@ -149,6 +149,7 @@ const TradingChart = ({ marketData }) => {
   };
 
   // Add efficiency subplot (row 2)
+  console.log('Efficiency data:', eff_data);
   if (eff_data && eff_data.length > 0) {
     // Plot individual efficiency lines in white with low opacity
     eff_data.forEach((eff_values, i) => {
