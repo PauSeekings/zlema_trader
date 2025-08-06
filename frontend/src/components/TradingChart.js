@@ -77,7 +77,6 @@ const TradingChart = ({ marketData }) => {
       zeroline: false,
       showticklabels: false,
       tickfont: { color: '#888888', size: 10 },
-      title: { text: 'Time', font: { color: '#888888', size: 12 } },
       fixedrange: true
     },
     yaxis: {
