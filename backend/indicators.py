@@ -24,7 +24,7 @@ def market_eff(prices, winlen):
         price_change = prices[CLOSE_PRICE,n] - prices[OPEN_PRICE,n-winlen]
         eff[n] = (price_change) / (np.sum(np.abs(barlen[n-winlen : n])))
         #eff[n] = (price_change - np.sum(barlen[n-winlen : n]))  #* prices[VOLUME,n]  
-    return eff
+    return np.clip(eff, -1, 1)
 
 # def market_eff(prices, winlen):
 #     eff = np.zeros((prices.shape[1], 1))
