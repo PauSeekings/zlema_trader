@@ -12,12 +12,14 @@ import {
   Box,
   FormGroup,
   FormControlLabel,
-  Checkbox
+  Checkbox,
+  TextField,
+  Divider
 } from '@mui/material';
 import { Settings } from '@mui/icons-material';
 import axios from 'axios';
 
-const Navigation = ({ tradingParams, setTradingParams, onTrade, overlaySettings, setOverlaySettings }) => {
+const Navigation = ({ tradingParams, setTradingParams, onTrade, overlaySettings, setOverlaySettings, polynomialParams, setPolynomialParams }) => {
   const [accountMode, setAccountMode] = useState('test');
   const [currentTime, setCurrentTime] = useState(new Date());
   const [settingsAnchor, setSettingsAnchor] = useState(null);
@@ -291,6 +293,72 @@ const Navigation = ({ tradingParams, setTradingParams, onTrade, overlaySettings,
                 sx={{ margin: 0 }}
               />
             </FormGroup>
+          </MenuItem>
+
+          <Divider sx={{ backgroundColor: '#333', margin: '4px 0' }} />
+
+          <MenuItem sx={{ backgroundColor: '#1a1a1a', '&:hover': { backgroundColor: '#333' }, padding: '2px 6px' }}>
+            <Typography variant="h6" sx={{ color: '#888888', mb: 0.25, width: '100%', fontSize: '0.75rem' }}>
+              Polynomial Predictions
+            </Typography>
+          </MenuItem>
+
+          <MenuItem sx={{ backgroundColor: '#1a1a1a', '&:hover': { backgroundColor: '#333' }, padding: '1px 6px' }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, width: '100%' }}>
+              <TextField
+                label="Lookback"
+                type="number"
+                value={polynomialParams.lookback}
+                onChange={(e) => setPolynomialParams(prev => ({ ...prev, lookback: parseInt(e.target.value) || 10 }))}
+                inputProps={{ min: 5, max: 50 }}
+                size="small"
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    '& fieldset': { borderColor: '#333' },
+                    '&:hover fieldset': { borderColor: '#555' },
+                    '&.Mui-focused fieldset': { borderColor: 'primary.main' }
+                  },
+                  '& .MuiInputLabel-root': { color: '#888', fontSize: '0.65rem' },
+                  '& .MuiInputBase-input': { color: '#fff', fontSize: '0.65rem', padding: '4px 8px' }
+                }}
+              />
+
+              <TextField
+                label="Forecast"
+                type="number"
+                value={polynomialParams.forecast_periods}
+                onChange={(e) => setPolynomialParams(prev => ({ ...prev, forecast_periods: parseInt(e.target.value) || 3 }))}
+                inputProps={{ min: 1, max: 10 }}
+                size="small"
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    '& fieldset': { borderColor: '#333' },
+                    '&:hover fieldset': { borderColor: '#555' },
+                    '&.Mui-focused fieldset': { borderColor: 'primary.main' }
+                  },
+                  '& .MuiInputLabel-root': { color: '#888', fontSize: '0.65rem' },
+                  '& .MuiInputBase-input': { color: '#fff', fontSize: '0.65rem', padding: '4px 8px' }
+                }}
+              />
+
+              <TextField
+                label="Degree"
+                type="number"
+                value={polynomialParams.degree}
+                onChange={(e) => setPolynomialParams(prev => ({ ...prev, degree: parseInt(e.target.value) || 2 }))}
+                inputProps={{ min: 1, max: 4 }}
+                size="small"
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    '& fieldset': { borderColor: '#333' },
+                    '&:hover fieldset': { borderColor: '#555' },
+                    '&.Mui-focused fieldset': { borderColor: 'primary.main' }
+                  },
+                  '& .MuiInputLabel-root': { color: '#888', fontSize: '0.65rem' },
+                  '& .MuiInputBase-input': { color: '#fff', fontSize: '0.65rem', padding: '4px 8px' }
+                }}
+              />
+            </Box>
           </MenuItem>
         </Menu>
 

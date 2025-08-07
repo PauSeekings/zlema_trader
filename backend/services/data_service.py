@@ -31,12 +31,13 @@ class DataService:
         
         # Calculate statistics
         zlema_ohlc_data = np.concatenate([candle[:4] for candle in all_candles[1:]], axis=0)
+        median_values = np.median(zlema_ohlc_data, axis=0)
         
         return {
             "all_candles": [candle.tolist() for candle in all_candles],
             "eff_data": eff_data,
             "std_devs": np.std(zlema_ohlc_data, axis=0).tolist(),
-            "medians": np.median(zlema_ohlc_data, axis=0).tolist(),
+            "medians": median_values.tolist(),
             "rsi_data": rsi_data,
             "pair": pair,
             "timeframe": timeframe,
@@ -46,35 +47,37 @@ class DataService:
     
     def get_polynomial_predictions(self, pair: str, timeframe: str, periods: int, 
                                  lookback: int = 20, forecast_periods: int = 5, 
-                                 degree: int = 2) -> Dict[str, Any]:
+                                 degree: int = 2, median_values: np.ndarray = None) -> Dict[str, Any]:
         """Calculate polynomial predictions using median values from all ZLEMA candles"""
-        # Get price data and scale to pips
-        n_candles = periods + 50
-        data = get_price(pair, timeframe, n_candles, self.exchange)
-        display_data = data[:, -periods:]
-        
-        # Scale data to pips
-        display_data[:4] = (display_data[:4] - np.mean(display_data[:4])) * Config.PIP_MULTIPLIER
-        
-        # Calculate indicators (same as market data)
-        ha = calc_HA(display_data)
-        ha_zlema_list = [zlema_ochl(ha[:4], window) for window in [3,12,24,36,48]]
-        zlema_list = [zlema_ochl(display_data[:4], window) for window in [3,12,24,36,48]]
-        
-        # Combine all candles (raw + HA ZLEMA + ZLEMA)
-        all_candles = [display_data] + ha_zlema_list + zlema_list
-        
-        # Calculate median across all candles for each time point
-        # Extract OHLC data from each candle and stack them
-        ohlc_data = []
-        for candle in all_candles:
-            ohlc_data.append(candle[:4])  # Take OHLC (first 4 rows)
-        
-        # Stack all OHLC data and calculate median across all candles
-        ohlc_array = np.array(ohlc_data)
-        # Calculate median across all candles for each time point, then take median of OHLC
-        median_values = np.median(ohlc_array, axis=0)  # Shape: (4, periods)
-        median_values = np.median(median_values, axis=0)  # Shape: (periods,) - median of OHLC
+        # Use provided median values or calculate them
+        if median_values is None:
+            # Fallback: calculate median values if not provided
+            n_candles = periods + 50
+            data = get_price(pair, timeframe, n_candles, self.exchange)
+            display_data = data[:, -periods:]
+            
+            # Scale data to pips
+            display_data[:4] = (display_data[:4] - np.mean(display_data[:4])) * Config.PIP_MULTIPLIER
+            
+            # Calculate indicators (same as market data)
+            ha = calc_HA(display_data)
+            ha_zlema_list = [zlema_ochl(ha[:4], window) for window in [3,12,24,36,48]]
+            zlema_list = [zlema_ochl(display_data[:4], window) for window in [3,12,24,36,48]]
+            
+            # Combine all candles (raw + HA ZLEMA + ZLEMA)
+            all_candles = [display_data] + ha_zlema_list + zlema_list
+            
+            # Calculate median across all candles for each time point
+            # Extract OHLC data from each candle and stack them
+            ohlc_data = []
+            for candle in all_candles:
+                ohlc_data.append(candle[:4])  # Take OHLC (first 4 rows)
+            
+            # Stack all OHLC data and calculate median across all candles
+            ohlc_array = np.array(ohlc_data)
+            # Calculate median across all candles for each time point, then take median of OHLC
+            median_values = np.median(ohlc_array, axis=0)  # Shape: (4, periods)
+            median_values = np.median(median_values, axis=0)  # Shape: (periods,) - median of OHLC
         
         # Take last lookback median values
         recent_medians = median_values[-lookback:]

@@ -11,19 +11,14 @@ import {
 import axios from 'axios';
 import TradingChart from './TradingChart';
 import TradeControls from './TradeControls';
-import PolynomialControls from './PolynomialControls';
 import AccountStatus from './AccountStatus';
 import CollapsibleSidebar from './CollapsibleSidebar';
 
-const TradingDashboard = ({ tradingParams, setTradingParams, overlaySettings, setOverlaySettings }) => {
+const TradingDashboard = ({ tradingParams, setTradingParams, overlaySettings, setOverlaySettings, polynomialParams, setPolynomialParams }) => {
   const [marketData, setMarketData] = useState(null);
   const [keyLevels, setKeyLevels] = useState(null);
   const [polynomialPredictions, setPolynomialPredictions] = useState(null);
-  const [polynomialParams, setPolynomialParams] = useState({
-    lookback: 20,
-    forecast_periods: 5,
-    degree: 2
-  });
+
   const [trades, setTrades] = useState([]);
   const [accountStatus, setAccountStatus] = useState({});
   const [loading, setLoading] = useState(false);
@@ -266,14 +261,6 @@ const TradingDashboard = ({ tradingParams, setTradingParams, overlaySettings, se
 
             {/* Account Status */}
             <AccountStatus status={accountStatus} trades={trades} />
-
-            {/* Polynomial Controls */}
-            <Box sx={{ mt: 1 }}>
-              <PolynomialControls
-                polynomialParams={polynomialParams}
-                setPolynomialParams={setPolynomialParams}
-              />
-            </Box>
           </Box>
         </Grid>
       </Grid>

@@ -2,6 +2,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import uvicorn
+import numpy as np
 
 from config import Config
 from models import TradingParams, TradeRequest, BacktestParams, TradeResponse, StatusResponse
@@ -113,7 +114,13 @@ async def get_polynomial_predictions(
 ):
     """Get polynomial predictions for future price movements"""
     try:
-        return data_service.get_polynomial_predictions(pair, timeframe, periods, lookback, forecast_periods, degree)
+        # Get market data first to reuse median values
+        market_data = data_service.get_market_data(pair, timeframe, periods, [3,12,24,36,48])
+        median_values = np.array(market_data.get('medians', []))
+        
+        return data_service.get_polynomial_predictions(
+            pair, timeframe, periods, lookback, forecast_periods, degree, median_values
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

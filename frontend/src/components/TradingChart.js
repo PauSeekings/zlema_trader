@@ -26,7 +26,11 @@ const TradingChart = ({ marketData, keyLevels, polynomialPredictions, overlaySet
   const subplotData = [];
   const data = []; // Main data array for candlesticks and key levels
   const keyLevelsData = []; // Separate array for key levels (plotted first)
-  const xAxis = Array.from({ length: all_candles[0][0].length }, (_, i) => i);
+  // Calculate total x-axis length including predictions
+  const baseLength = all_candles[0][0].length;
+  const predictionLength = polynomialPredictions && polynomialPredictions.predictions ? polynomialPredictions.predictions.length : 0;
+  const totalLength = baseLength + predictionLength;
+  const xAxis = Array.from({ length: baseLength }, (_, i) => i);
 
   // Plot all candlesticks from all_candles (main plot)
   all_candles.forEach((candle, index) => {
@@ -214,7 +218,8 @@ const TradingChart = ({ marketData, keyLevels, polynomialPredictions, overlaySet
       zeroline: false,
       showticklabels: false,
       tickfont: { color: '#888888', size: 10 },
-      fixedrange: true
+      fixedrange: true,
+      range: [0, totalLength - 1]
     },
     yaxis: {
       showgrid: true,
@@ -232,7 +237,8 @@ const TradingChart = ({ marketData, keyLevels, polynomialPredictions, overlaySet
       zeroline: false,
       showticklabels: false,
       fixedrange: true,
-      domain: [0, 1]
+      domain: [0, 1],
+      range: [0, totalLength - 1]
     },
     yaxis2: {
       showgrid: true,
@@ -251,7 +257,8 @@ const TradingChart = ({ marketData, keyLevels, polynomialPredictions, overlaySet
       zeroline: false,
       showticklabels: false,
       fixedrange: true,
-      domain: [0, 1]
+      domain: [0, 1],
+      range: [0, totalLength - 1]
     },
     yaxis3: {
       showgrid: true,
@@ -271,7 +278,8 @@ const TradingChart = ({ marketData, keyLevels, polynomialPredictions, overlaySet
       tickfont: { color: '#888888', size: 8 },
       title: { text: 'Time', font: { color: '#888888', size: 10 } },
       fixedrange: true,
-      domain: [0, 1]
+      domain: [0, 1],
+      range: [0, totalLength - 1]
     },
     yaxis4: {
       showgrid: true,
@@ -293,6 +301,7 @@ const TradingChart = ({ marketData, keyLevels, polynomialPredictions, overlaySet
       subplotData.push({
         type: 'scatter',
         mode: 'lines',
+        x: xAxis,
         y: eff_values,
         line: { color: 'white', width: 1 },
         opacity: 0.2,
@@ -329,6 +338,7 @@ const TradingChart = ({ marketData, keyLevels, polynomialPredictions, overlaySet
     subplotData.push({
       type: 'scatter',
       mode: 'lines',
+      x: xAxis,
       y: greenSegments,
       line: {
         color: 'green',
@@ -345,6 +355,7 @@ const TradingChart = ({ marketData, keyLevels, polynomialPredictions, overlaySet
     subplotData.push({
       type: 'scatter',
       mode: 'lines',
+      x: xAxis,
       y: redSegments,
       line: {
         color: 'red',
@@ -365,6 +376,7 @@ const TradingChart = ({ marketData, keyLevels, polynomialPredictions, overlaySet
       subplotData.push({
         type: 'scatter',
         mode: 'lines',
+        x: xAxis,
         y: rsi_values,
         line: { color: 'white', width: 1 },
         opacity: 0.2,
@@ -401,6 +413,7 @@ const TradingChart = ({ marketData, keyLevels, polynomialPredictions, overlaySet
     subplotData.push({
       type: 'scatter',
       mode: 'lines',
+      x: xAxis,
       y: greenSegments,
       line: {
         color: 'green',
@@ -417,6 +430,7 @@ const TradingChart = ({ marketData, keyLevels, polynomialPredictions, overlaySet
     subplotData.push({
       type: 'scatter',
       mode: 'lines',
+      x: xAxis,
       y: redSegments,
       line: {
         color: 'red',
@@ -434,6 +448,7 @@ const TradingChart = ({ marketData, keyLevels, polynomialPredictions, overlaySet
   if (std_devs && std_devs.length > 0) {
     subplotData.push({
       type: 'bar',
+      x: xAxis,
       y: std_devs,
       marker: {
         color: 'white',

@@ -27,17 +27,25 @@ const DEFAULT_OVERLAY_SETTINGS = {
   pivots: false
 };
 
+// Default polynomial parameters
+const DEFAULT_POLYNOMIAL_PARAMS = {
+  lookback: 10,
+  forecast_periods: 3,
+  degree: 2
+};
+
 function App() {
   const [tradingParams, setTradingParams] = useState(DEFAULT_TRADING_PARAMS);
   const [overlaySettings, setOverlaySettings] = useState(DEFAULT_OVERLAY_SETTINGS);
-  
+  const [polynomialParams, setPolynomialParams] = useState(DEFAULT_POLYNOMIAL_PARAMS);
+
   const { placeTrade } = useTrading();
 
   const handleTrade = async (direction, size) => {
     try {
       await placeTrade(
         { pair: tradingParams.pair, direction, size },
-        { 
+        {
           onSuccess: () => {
             // Dispatch custom event to refresh trades and account status
             window.dispatchEvent(new CustomEvent('tradePlaced'));
@@ -60,19 +68,23 @@ function App() {
             onTrade={handleTrade}
             overlaySettings={overlaySettings}
             setOverlaySettings={setOverlaySettings}
+            polynomialParams={polynomialParams}
+            setPolynomialParams={setPolynomialParams}
           />
           <Box component="main" sx={{ flexGrow: 1, p: 0 }}>
             <Routes>
-              <Route 
-                path="/" 
+              <Route
+                path="/"
                 element={
                   <TradingDashboard
                     tradingParams={tradingParams}
                     setTradingParams={setTradingParams}
                     overlaySettings={overlaySettings}
                     setOverlaySettings={setOverlaySettings}
+                    polynomialParams={polynomialParams}
+                    setPolynomialParams={setPolynomialParams}
                   />
-                } 
+                }
               />
               <Route path="/backtest" element={<BacktestPage />} />
             </Routes>
