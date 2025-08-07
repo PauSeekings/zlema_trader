@@ -90,15 +90,15 @@ const TradeControls = ({ tradingParams, setTradingParams, onTrade }) => {
             true
           )}
         </Grid>
-        <Grid item xs={8}>
-          <Box sx={commonStyles.tightSpacing}>
-            <Button sx={commonStyles.buyButton} onClick={() => handleTrade('BUY')}>
-              BUY
-            </Button>
-            <Button sx={commonStyles.sellButton} onClick={() => handleTrade('SELL')}>
-              SELL
-            </Button>
-          </Box>
+        <Grid item xs={4}>
+          <Button sx={commonStyles.buyButton} onClick={() => handleTrade('BUY')} fullWidth>
+            BUY
+          </Button>
+        </Grid>
+        <Grid item xs={4}>
+          <Button sx={commonStyles.sellButton} onClick={() => handleTrade('SELL')} fullWidth>
+            SELL
+          </Button>
         </Grid>
       </Grid>
     </Paper>

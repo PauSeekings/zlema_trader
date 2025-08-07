@@ -179,7 +179,6 @@ export const commonStyles = {
   buyButton: {
     backgroundColor: colors.success,
     minHeight: '20px',
-    flex: 1,
     color: 'white',
     '&:hover': {
       backgroundColor: '#45a049',
@@ -188,7 +187,6 @@ export const commonStyles = {
   sellButton: {
     backgroundColor: colors.error,
     minHeight: '20px',
-    flex: 1,
     color: 'white',
     '&:hover': {
       backgroundColor: '#d32f2f',
