@@ -25,7 +25,7 @@ class DataService:
         zlema_list = [zlema_ochl(display_data[:4], window) for window in window_lengths]
         
         # Calculate RSI and efficiency for all candle data
-        all_candles = [display_data] + ha_zlema_list + zlema_list
+        all_candles =  [ ha ]+ ha_zlema_list + zlema_list
         rsi_data = [calc_rsi(candle_data[:4], Config.RSI_WINDOW).tolist() for candle_data in all_candles]
         eff_data = [market_eff(candle_data[:4], Config.EFFICIENCY_WINDOW).tolist() for candle_data in all_candles]
         
