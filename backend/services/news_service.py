@@ -8,7 +8,11 @@ class NewsService:
     def __init__(self):
         self.openai_client = None
         if Config.OPENAI_API_KEY:
-            self.openai_client = openai.OpenAI(api_key=Config.OPENAI_API_KEY)
+            try:
+                self.openai_client = openai.OpenAI(api_key=Config.OPENAI_API_KEY)
+            except Exception as e:
+                print(f"Warning: Could not initialize OpenAI client: {e}")
+                self.openai_client = None
     
     def get_news_feed(self, currency_pair: str = "GBP_USD", enable_ai_analysis: bool = True) -> Dict[str, Any]:
         """Get news feed with optional AI sentiment analysis"""

@@ -1,5 +1,4 @@
 import numpy as np
-import talib as ta
 from scipy import signal
 
 OPEN_PRICE = 0
@@ -10,6 +9,31 @@ VOLUME  = 4
 D_TIME = 5
 D_TIME_MOD = 6
 PIP = 10000
+
+def ema(data, period):
+    """Custom EMA implementation to replace talib.EMA"""
+    alpha = 2 / (period + 1)
+    ema_values = np.zeros_like(data)
+    ema_values[0] = data[0]
+    
+    for i in range(1, len(data)):
+        ema_values[i] = alpha * data[i] + (1 - alpha) * ema_values[i-1]
+    
+    return ema_values
+
+def atr(high, low, close, period):
+    """Custom ATR implementation to replace talib.ATR"""
+    tr = np.zeros_like(high)
+    tr[0] = high[0] - low[0]
+    
+    for i in range(1, len(high)):
+        tr[i] = max(
+            high[i] - low[i],
+            abs(high[i] - close[i-1]),
+            abs(low[i] - close[i-1])
+        )
+    
+    return ema(tr, period)
 
 def market_eff_win(price_win):
     barlen = price_win[CLOSE_PRICE] - price_win[OPEN_PRICE]
@@ -196,7 +220,7 @@ def vpt(price, volume, win):
 
 def vpt_2(price, volume):
     vpt = np.zeros((price.shape[1],))
-    mn_vol = ta.EMA(volume,5)
+    mn_vol = ema(volume, 5)
     for n in range(1,price.shape[1]):
         if volume[n] > mn_vol[n]:
             vpt[n] = (price[CLOSE_PRICE,n] - price[CLOSE_PRICE,n-1]) * PIP * volume[n]
@@ -205,41 +229,7 @@ def vpt_2(price, volume):
 
 
 
-def supertrend(price, atr_length, atr_multiplier ):
-	atr_length = int(atr_length)
-	atr = ta.ATR(price[HIGH_PRICE], price[LOW_PRICE], price[CLOSE_PRICE], atr_length) * atr_multiplier 
-	#barlen = (price[HIGH_PRICE] + price[LOW_PRICE]) /2 
-	barlen = (price[HIGH_PRICE] + price[LOW_PRICE]) /2 
-	ub = barlen + atr
-	lb = barlen - atr
-	fub, flb, supertrend, trade = np.ones_like(ub) , np.ones_like(lb), np.ones_like(lb), np.ones((2, price.shape[1])) * np.nan
 
-
-	for n in range(atr_length+1,price[0].shape[0]):
-		if (ub[n]< fub[n-1]) or (price[CLOSE_PRICE, n-1] > fub[n-1] ):
-			fub[n] = ub[n]
-		else:
-			fub[n] = fub[n-1] 
-	
-		if (lb[n] > flb[n-1]) or (price[CLOSE_PRICE, n-1] < flb[n-1] ):
-			flb[n] = lb[n]
-		else:
-			flb[n] = flb[n-1] 
-
-	for n in range(0,price[0].shape[0]):
-		if ((supertrend[n-1]) == fub[n-1] and (price[CLOSE_PRICE, n] <= fub[n])) or ((supertrend[n-1]) == flb[n-1] and (price[CLOSE_PRICE, n] < flb[n])):
-			supertrend[n] =  fub[n]
-			trade[0,n] =  fub[n]
-			
-		elif ((supertrend[n-1]) == fub[n-1] and (price[CLOSE_PRICE, n] > fub[n])) or ( (supertrend[n-1]) == flb[n-1] and (price[CLOSE_PRICE, n] >= flb[n])):
-			supertrend[n] = flb[n]
-			trade[1,n] = flb[n]
-			
-	flb[:atr_length +1] = np.nan
-	fub[:atr_length +1] = np.nan
-	trade[:,:atr_length +1] = np.nan
-	supertrend[:atr_length +1] = np.nan
-	return supertrend ,flb, fub, trade
 
 # def supertrend(price, atr_length, atr_multiplier ):
 # 	atr_length = int(atr_length)

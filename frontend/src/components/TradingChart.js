@@ -156,7 +156,7 @@ const TradingChart = ({ marketData, keyLevels, overlaySettings }) => {
     plot_bgcolor: '#0a0a0a',
     paper_bgcolor: '#0a0a0a',
     font: { color: '#888888', family: 'Poppins, sans-serif' },
-    height: window.innerHeight - 100,
+    height: window.innerHeight - 64,
     showlegend: false,
     margin: { l: 50, r: 20, t: 20, b: 30 },
     hovermode: false,

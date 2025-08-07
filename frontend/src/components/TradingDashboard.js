@@ -145,7 +145,7 @@ const TradingDashboard = ({ tradingParams, setTradingParams, overlaySettings, se
   };
 
   return (
-    <Box sx={{ flexGrow: 1, height: '100vh', p: 0 }}>
+    <Box sx={{ flexGrow: 1, height: 'calc(100vh - 64px)', p: 0 }}>
       {/* Collapsible Sidebar */}
       <CollapsibleSidebar pair={tradingParams.pair} />
 
@@ -158,7 +158,7 @@ const TradingDashboard = ({ tradingParams, setTradingParams, overlaySettings, se
       <Grid container spacing={0.5}>
         {/* Main Chart */}
         <Grid item xs={12} md={9}>
-          <Paper sx={{ p: 0, height: '100vh' }}>
+          <Paper sx={{ p: 0, height: '100%' }}>
             {isInitialLoad && loading ? (
               <Box display="flex" justifyContent="center" alignItems="center" height="100%">
                 <CircularProgress />
@@ -173,7 +173,7 @@ const TradingDashboard = ({ tradingParams, setTradingParams, overlaySettings, se
 
         {/* Right Column - Trade Controls, Open Trades, Account Status */}
         <Grid item xs={12} md={3}>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, height: '100vh', overflowY: 'auto' }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, height: '100%', overflowY: 'auto' }}>
             {/* Trade Controls */}
             <Box sx={{ mt: 1 }}>
               <TradeControls

@@ -1,5 +1,4 @@
 import numpy as np
-# import talib as ta  # Commented out since we don't use it in market data endpoint
 from scipy import signal
 
 OPEN_PRICE = 0
@@ -10,6 +9,31 @@ VOLUME  = 4
 D_TIME = 5
 D_TIME_MOD = 6
 PIP = 10000
+
+def ema(data, period):
+    """Custom EMA implementation to replace talib.EMA"""
+    alpha = 2 / (period + 1)
+    ema_values = np.zeros_like(data)
+    ema_values[0] = data[0]
+    
+    for i in range(1, len(data)):
+        ema_values[i] = alpha * data[i] + (1 - alpha) * ema_values[i-1]
+    
+    return ema_values
+
+def atr(high, low, close, period):
+    """Custom ATR implementation to replace talib.ATR"""
+    tr = np.zeros_like(high)
+    tr[0] = high[0] - low[0]
+    
+    for i in range(1, len(high)):
+        tr[i] = max(
+            high[i] - low[i],
+            abs(high[i] - close[i-1]),
+            abs(low[i] - close[i-1])
+        )
+    
+    return ema(tr, period)
 
 def market_eff_win(price_win):
     barlen = price_win[CLOSE_PRICE] - price_win[OPEN_PRICE]
