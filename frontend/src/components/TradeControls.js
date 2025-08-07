@@ -1,5 +1,5 @@
 import React from 'react';
-import { Paper, Grid, FormControl, Select, MenuItem, Button, Box } from '@mui/material';
+import { Paper, Grid, FormControl, Select, MenuItem, Button } from '@mui/material';
 import { commonStyles } from '../theme';
 
 // Trading options configuration
