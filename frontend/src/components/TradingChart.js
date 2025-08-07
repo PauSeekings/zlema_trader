@@ -2,7 +2,7 @@ import React from 'react';
 import Plot from 'react-plotly.js';
 import { Box, Typography } from '@mui/material';
 
-const TradingChart = ({ marketData, keyLevels, overlaySettings }) => {
+const TradingChart = ({ marketData, keyLevels, polynomialPredictions, overlaySettings }) => {
   if (!marketData || !marketData.all_candles) {
     return <Typography>Loading chart...</Typography>;
   }
@@ -97,6 +97,45 @@ const TradingChart = ({ marketData, keyLevels, overlaySettings }) => {
       xaxis: 'x',
       yaxis: 'y',
       layer: 'above' // Ensure this is above key levels
+    });
+  }
+
+  // Add polynomial predictions
+  if (polynomialPredictions && polynomialPredictions.predictions) {
+    const { predictions, recent_medians, r_squared } = polynomialPredictions;
+    const currentLength = xAxis.length;
+
+    // Create x-axis for predictions (starting from the last median point)
+    // The median line uses default x-axis (0, 1, 2, ...), so we need to align with that
+    const predictionX = Array.from({ length: predictions.length }, (_, i) => currentLength - 1 + i);
+
+    // Plot polynomial predictions as white dashed line (same as median line)
+    data.push({
+      type: 'scatter',
+      mode: 'lines',
+      x: predictionX,
+      y: predictions,
+      line: { color: 'white', width: 2, dash: 'dash' },
+      opacity: 0.2,
+      xaxis: 'x',
+      yaxis: 'y',
+      layer: 'above',
+      showlegend: false
+    });
+
+    // Add R² text label at the last prediction point
+    data.push({
+      type: 'scatter',
+      mode: 'text',
+      x: [predictionX[predictionX.length - 1]],
+      y: [predictions[predictions.length - 1]],
+      text: [`R²=${r_squared.toFixed(3)}`],
+      textposition: 'top right',
+      textfont: { color: 'white', size: 10 },
+      xaxis: 'x',
+      yaxis: 'y',
+      layer: 'above',
+      showlegend: false
     });
   }
 

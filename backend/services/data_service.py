@@ -44,6 +44,75 @@ class DataService:
             "timestamp": datetime.now().isoformat()
         }
     
+    def get_polynomial_predictions(self, pair: str, timeframe: str, periods: int, 
+                                 lookback: int = 20, forecast_periods: int = 5, 
+                                 degree: int = 2) -> Dict[str, Any]:
+        """Calculate polynomial predictions using median values from all ZLEMA candles"""
+        # Get price data and scale to pips
+        n_candles = periods + 50
+        data = get_price(pair, timeframe, n_candles, self.exchange)
+        display_data = data[:, -periods:]
+        
+        # Scale data to pips
+        display_data[:4] = (display_data[:4] - np.mean(display_data[:4])) * Config.PIP_MULTIPLIER
+        
+        # Calculate indicators (same as market data)
+        ha = calc_HA(display_data)
+        ha_zlema_list = [zlema_ochl(ha[:4], window) for window in [3,12,24,36,48]]
+        zlema_list = [zlema_ochl(display_data[:4], window) for window in [3,12,24,36,48]]
+        
+        # Combine all candles (raw + HA ZLEMA + ZLEMA)
+        all_candles = [display_data] + ha_zlema_list + zlema_list
+        
+        # Calculate median across all candles for each time point
+        # Extract OHLC data from each candle and stack them
+        ohlc_data = []
+        for candle in all_candles:
+            ohlc_data.append(candle[:4])  # Take OHLC (first 4 rows)
+        
+        # Stack all OHLC data and calculate median across all candles
+        ohlc_array = np.array(ohlc_data)
+        # Calculate median across all candles for each time point, then take median of OHLC
+        median_values = np.median(ohlc_array, axis=0)  # Shape: (4, periods)
+        median_values = np.median(median_values, axis=0)  # Shape: (periods,) - median of OHLC
+        
+        # Take last lookback median values
+        recent_medians = median_values[-lookback:]
+        
+        # Create x-axis (time points)
+        x = np.arange(lookback)
+        
+        # Fit polynomial
+        coefficients = np.polyfit(x, recent_medians, degree)
+        poly_func = np.poly1d(coefficients)
+        
+        # Generate predictions for future periods
+        future_x = np.arange(lookback, lookback + forecast_periods)
+        predictions = poly_func(future_x)
+        
+        # Ensure the first prediction connects smoothly with the last median
+        # Replace the first prediction with the last median value for perfect connection
+        predictions[0] = recent_medians[-1]
+        
+        # Calculate R-squared for fit quality
+        y_fit = poly_func(x)
+        ss_res = np.sum((recent_medians - y_fit) ** 2)
+        ss_tot = np.sum((recent_medians - np.mean(recent_medians)) ** 2)
+        r_squared = 1 - (ss_res / ss_tot) if ss_tot != 0 else 0
+        
+        return {
+            "recent_medians": recent_medians.tolist(),
+            "predictions": predictions.tolist(),
+            "coefficients": coefficients.tolist(),
+            "r_squared": float(r_squared),
+            "degree": degree,
+            "lookback": lookback,
+            "forecast_periods": forecast_periods,
+            "pair": pair,
+            "timeframe": timeframe,
+            "timestamp": datetime.now().isoformat()
+        }
+    
     def get_key_levels(self, pair: str, timeframe: str, periods: int, window: int, threshold: float) -> Dict[str, Any]:
         """Get key levels for trading analysis"""
         n_candles = periods + 50

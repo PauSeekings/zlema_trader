@@ -102,6 +102,21 @@ async def get_key_levels(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/api/polynomial-predictions")
+async def get_polynomial_predictions(
+    pair: str = Config.DEFAULT_PAIR,
+    timeframe: str = Config.DEFAULT_TIMEFRAME,
+    periods: int = Config.DEFAULT_PERIODS,
+    lookback: int = 20,
+    forecast_periods: int = 5,
+    degree: int = 2
+):
+    """Get polynomial predictions for future price movements"""
+    try:
+        return data_service.get_polynomial_predictions(pair, timeframe, periods, lookback, forecast_periods, degree)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.post("/api/trade", response_model=TradeResponse)
 async def place_trade(trade: TradeRequest):
     """Place a new trade"""

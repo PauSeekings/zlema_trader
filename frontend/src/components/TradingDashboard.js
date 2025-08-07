@@ -11,12 +11,19 @@ import {
 import axios from 'axios';
 import TradingChart from './TradingChart';
 import TradeControls from './TradeControls';
+import PolynomialControls from './PolynomialControls';
 import AccountStatus from './AccountStatus';
 import CollapsibleSidebar from './CollapsibleSidebar';
 
 const TradingDashboard = ({ tradingParams, setTradingParams, overlaySettings, setOverlaySettings }) => {
   const [marketData, setMarketData] = useState(null);
   const [keyLevels, setKeyLevels] = useState(null);
+  const [polynomialPredictions, setPolynomialPredictions] = useState(null);
+  const [polynomialParams, setPolynomialParams] = useState({
+    lookback: 20,
+    forecast_periods: 5,
+    degree: 2
+  });
   const [trades, setTrades] = useState([]);
   const [accountStatus, setAccountStatus] = useState({});
   const [loading, setLoading] = useState(false);
@@ -66,6 +73,24 @@ const TradingDashboard = ({ tradingParams, setTradingParams, overlaySettings, se
     }
   };
 
+  const fetchPolynomialPredictions = async () => {
+    try {
+      const response = await axios.get('/api/polynomial-predictions', {
+        params: {
+          pair: tradingParams.pair,
+          timeframe: tradingParams.timeframe,
+          periods: tradingParams.periods,
+          lookback: polynomialParams.lookback,
+          forecast_periods: polynomialParams.forecast_periods,
+          degree: polynomialParams.degree
+        }
+      });
+      setPolynomialPredictions(response.data);
+    } catch (err) {
+      console.error('Failed to fetch polynomial predictions:', err);
+    }
+  };
+
   const fetchTrades = async () => {
     try {
       const response = await axios.get('/api/trades');
@@ -87,12 +112,14 @@ const TradingDashboard = ({ tradingParams, setTradingParams, overlaySettings, se
   useEffect(() => {
     fetchMarketData();
     fetchKeyLevels();
+    fetchPolynomialPredictions();
     fetchTrades();
     fetchAccountStatus();
 
     // Set up auto-refresh
     const interval = setInterval(() => {
       fetchMarketData(true);
+      fetchPolynomialPredictions();
       fetchTrades();
       fetchAccountStatus();
     }, 5000);
@@ -109,6 +136,11 @@ const TradingDashboard = ({ tradingParams, setTradingParams, overlaySettings, se
       window.removeEventListener('tradePlaced', handleTradePlaced);
     };
   }, [tradingParams]);
+
+  // Refetch polynomial predictions when parameters change
+  useEffect(() => {
+    fetchPolynomialPredictions();
+  }, [polynomialParams]);
 
   const handleTrade = async (direction, size) => {
     try {
@@ -164,7 +196,12 @@ const TradingDashboard = ({ tradingParams, setTradingParams, overlaySettings, se
                 <CircularProgress />
               </Box>
             ) : marketData ? (
-              <TradingChart marketData={marketData} keyLevels={keyLevels} overlaySettings={overlaySettings} />
+              <TradingChart
+                marketData={marketData}
+                keyLevels={keyLevels}
+                polynomialPredictions={polynomialPredictions}
+                overlaySettings={overlaySettings}
+              />
             ) : (
               <Typography>No market data available</Typography>
             )}
@@ -229,6 +266,14 @@ const TradingDashboard = ({ tradingParams, setTradingParams, overlaySettings, se
 
             {/* Account Status */}
             <AccountStatus status={accountStatus} trades={trades} />
+
+            {/* Polynomial Controls */}
+            <Box sx={{ mt: 1 }}>
+              <PolynomialControls
+                polynomialParams={polynomialParams}
+                setPolynomialParams={setPolynomialParams}
+              />
+            </Box>
           </Box>
         </Grid>
       </Grid>

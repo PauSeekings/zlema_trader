@@ -47,7 +47,7 @@ class NewsService:
                 
                 # Analyze impact if currency pair is provided
                 analysis = None
-                if currency_pair and self.openai_client:
+                if currency_pair:
                     analysis = self._analyze_news_impact(title, currency_pair)
                 
                 news_items.append({
@@ -63,9 +63,9 @@ class NewsService:
             return [{'title': f'Error loading feed: {str(e)}', 'description': '', 'link': '', 'published': '', 'analysis': None}]
     
     def _analyze_news_impact(self, headline: str, currency_pair: str) -> Dict[str, str]:
-        """Analyze news impact using OpenAI"""
+        """Analyze news impact using OpenAI or keyword-based fallback"""
         if not self.openai_client:
-            return {'impact': 'NEUTRAL', 'reasoning': 'AI analysis not available', 'confidence': 'LOW'}
+            return self._keyword_based_analysis(headline, currency_pair)
         
         try:
             prompt = f"""Analyze how this financial news headline might affect the {currency_pair} currency pair:
@@ -92,7 +92,42 @@ CONFIDENCE: [HIGH/MEDIUM/LOW]"""
             return self._parse_ai_response(response.choices[0].message.content.strip())
             
         except Exception as e:
-            return {'impact': 'NEUTRAL', 'reasoning': f'Analysis failed: {str(e)}', 'confidence': 'LOW'}
+            return self._keyword_based_analysis(headline, currency_pair)
+    
+    def _keyword_based_analysis(self, headline: str, currency_pair: str) -> Dict[str, str]:
+        """Simple keyword-based sentiment analysis fallback"""
+        headline_lower = headline.lower()
+        
+        # Bullish keywords
+        bullish_keywords = ['rise', 'gain', 'up', 'higher', 'strong', 'positive', 'growth', 'surge', 'rally', 'boost']
+        # Bearish keywords  
+        bearish_keywords = ['fall', 'drop', 'down', 'lower', 'weak', 'negative', 'decline', 'crash', 'plunge', 'loss']
+        
+        # Count keyword matches
+        bullish_count = sum(1 for word in bullish_keywords if word in headline_lower)
+        bearish_count = sum(1 for word in bearish_keywords if word in headline_lower)
+        
+        # Determine impact
+        if bullish_count > bearish_count:
+            impact = 'BUY'
+            reasoning = f'Headline contains {bullish_count} bullish keywords suggesting positive sentiment'
+        elif bearish_count > bullish_count:
+            impact = 'SELL'
+            reasoning = f'Headline contains {bearish_count} bearish keywords suggesting negative sentiment'
+        else:
+            impact = 'NEUTRAL'
+            reasoning = 'Mixed or neutral sentiment based on keyword analysis'
+        
+        # Determine confidence based on keyword strength
+        total_keywords = bullish_count + bearish_count
+        if total_keywords >= 3:
+            confidence = 'HIGH'
+        elif total_keywords >= 1:
+            confidence = 'MEDIUM'
+        else:
+            confidence = 'LOW'
+        
+        return {'impact': impact, 'reasoning': reasoning, 'confidence': confidence}
     
     def _parse_ai_response(self, analysis: str) -> Dict[str, str]:
         """Parse AI response into structured format"""
