@@ -2,8 +2,9 @@
   deps = [
     pkgs.python39
     pkgs.python39Packages.pip
-    pkgs.nodejs-18_x
-    pkgs.nodePackages.npm
+    pkgs.python39Packages.numpy
+    pkgs.python39Packages.pandas
+    pkgs.python39Packages.requests
     pkgs.git
   ];
 } 

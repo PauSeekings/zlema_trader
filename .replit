@@ -8,17 +8,4 @@ channel = "stable-22_11"
 PYTHONPATH = "${REPL_HOME}/backend"
 
 [packager]
-language = "python3"
-
-[packager.features]
-packageSearch = true
-guessImports = true
-
-[languages]
-[languages.python]
-pattern = "**/*.py"
-syntax = "python"
-
-[languages.javascript]
-pattern = "**/*.js"
-syntax = "javascript" 
+language = "python3" 
