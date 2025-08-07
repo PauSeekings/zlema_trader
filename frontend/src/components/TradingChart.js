@@ -2,7 +2,7 @@ import React from 'react';
 import Plot from 'react-plotly.js';
 import { Box, Typography } from '@mui/material';
 
-const TradingChart = ({ marketData, keyLevels, polynomialPredictions, overlaySettings }) => {
+const TradingChart = ({ marketData, keyLevels, polynomialPredictions, overlaySettings, currentPrice }) => {
   if (!marketData || !marketData.all_candles) {
     return <Typography>Loading chart...</Typography>;
   }
@@ -192,6 +192,30 @@ const TradingChart = ({ marketData, keyLevels, polynomialPredictions, overlaySet
           layer: 'below' // Ensure this is plotted behind everything
         });
       }
+    });
+  }
+
+  // Add current price horizontal line if there are open trades
+  if (currentPrice && currentPrice.price && currentPrice.mean && xAxis && xAxis.length > 0) {
+    // Use the same scaling as the backend: (price - mean) * 10000
+    const scaledCurrentPrice = (currentPrice.price - currentPrice.mean) * 10000;
+
+    keyLevelsData.push({
+      type: 'scatter',
+      mode: 'lines',
+      x: [0, xAxis.length - 1],
+      y: [scaledCurrentPrice, scaledCurrentPrice],
+      line: {
+        color: 'white',
+        width: 2,
+        dash: 'dash'
+      },
+      opacity: 0.5, // 50% opacity
+      xaxis: 'x',
+      yaxis: 'y',
+      name: 'Current Price',
+      showlegend: false,
+      layer: 'below' // Ensure this is plotted behind everything
     });
   }
 

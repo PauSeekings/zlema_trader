@@ -10,7 +10,7 @@ from services.data_service import DataService
 from services.trading_service import TradingService
 from services.news_service import NewsService
 from services.backtest_service import BacktestService
-from libs.tradelib import connect
+from libs.tradelib import connect, get_price
 
 # Initialize FastAPI app
 app = FastAPI(title=Config.API_TITLE, version=Config.API_VERSION)
@@ -121,6 +121,29 @@ async def get_polynomial_predictions(
         return data_service.get_polynomial_predictions(
             pair, timeframe, periods, lookback, forecast_periods, degree, median_values
         )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/current-price")
+async def get_current_price(
+    pair: str = Config.DEFAULT_PAIR,
+    timeframe: str = Config.DEFAULT_TIMEFRAME,
+    periods: int = Config.DEFAULT_PERIODS
+):
+    """Get current market price for a currency pair"""
+    try:
+        current_price = get_price(pair, timeframe, 1, exchange)[1, -1]  # Get latest close price
+        
+        # Get the mean price used for scaling (same as in market data)
+        # Use the same parameters as the chart data
+        data = get_price(pair, timeframe, periods + 50, exchange)  # Get same data as market data
+        display_data = data[:, -periods:]  # Same as market data
+        mean_price = np.mean(display_data[:4])  # Mean of OHLC data (same as market data)
+        
+        return {
+            "current_price": current_price,
+            "mean_price": mean_price
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

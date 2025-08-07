@@ -59,7 +59,7 @@ const AccountStatus = ({ status, trades = [] }) => {
 
   return (
     <Paper sx={{ p: 1 }}>
-      <Typography variant="h6" gutterBottom sx={{ color: 'primary.main', display: 'flex', alignItems: 'center', fontSize: '0.8rem', mb: 1 }}>
+      <Typography variant="h6" gutterBottom sx={{ color: '#ffffff', display: 'flex', alignItems: 'center', fontSize: '0.8rem', mb: 1 }}>
         <AccountBalance sx={{ mr: 0.5, fontSize: '1rem' }} />
         Account Status
       </Typography>
@@ -69,7 +69,7 @@ const AccountStatus = ({ status, trades = [] }) => {
       {/* Account Balance */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
         <Typography variant="body2" sx={{ fontSize: '0.7rem' }}>Balance:</Typography>
-        <Typography variant="body2" color="primary" sx={{ fontSize: '0.7rem' }}>
+        <Typography variant="body2" sx={{ color: '#ffffff', fontSize: '0.7rem' }}>
           {status.account_balance ? `$${status.account_balance.toFixed(2)}` : 'N/A'}
         </Typography>
       </Box>
@@ -77,7 +77,7 @@ const AccountStatus = ({ status, trades = [] }) => {
       {/* Open Trades */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
         <Typography variant="body2" sx={{ fontSize: '0.7rem' }}>Open Trades:</Typography>
-        <Typography variant="body2" color="primary" sx={{ fontSize: '0.7rem' }}>
+        <Typography variant="body2" sx={{ color: '#ffffff', fontSize: '0.7rem' }}>
           {status.open_trades_count || 0}
         </Typography>
       </Box>
@@ -100,7 +100,7 @@ const AccountStatus = ({ status, trades = [] }) => {
       {/* Total Trades */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
         <Typography variant="body2" sx={{ fontSize: '0.7rem' }}>Total Trades:</Typography>
-        <Typography variant="body2" color="primary" sx={{ fontSize: '0.7rem' }}>
+        <Typography variant="body2" sx={{ color: '#ffffff', fontSize: '0.7rem' }}>
           {status.total_trades || 0}
         </Typography>
       </Box>
@@ -130,7 +130,7 @@ const AccountStatus = ({ status, trades = [] }) => {
               <Typography variant="body2" sx={{ fontSize: '0.65rem' }}>
                 {key.trim()}:
               </Typography>
-              <Typography variant="body2" color="primary" sx={{ fontSize: '0.65rem' }}>
+              <Typography variant="body2" sx={{ color: '#ffffff', fontSize: '0.65rem' }}>
                 {typeof value === 'number' ? value.toFixed(2) : value}
               </Typography>
             </Box>

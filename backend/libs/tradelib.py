@@ -162,12 +162,18 @@ def update_stats_dict(profit_history):
 	profit_history_array = np.asarray(profit_history)
 	postive = profit_history_array > 0
 	negative = profit_history_array < 0
+	
+	# Handle division by zero case
+	profit_ratio = 0.0
+	if np.sum(profit_history_array[negative]) != 0:
+		profit_ratio = float(np.round(- np.sum(profit_history_array[postive]) / np.sum(profit_history_array[negative]), 2))
+	
 	return {
-		'Last Trade ' :  np.round(profit_history[-1]), 
-		'Win Loss   '  :  np.round(100 * np.mean(postive)),
-		'Profit Ratio' :  np.round(- np.sum(profit_history_array[postive]) / np.sum(profit_history_array[negative]),2),
-		'Average     ' :  np.round(np.mean(profit_history_array)),
-		'Total           ' : np.round(np.sum(profit_history_array)),
+		'Last Trade ' :  float(np.round(profit_history[-1])), 
+		'Win Loss   '  :  float(np.round(100 * np.mean(postive))),
+		'Profit Ratio' :  profit_ratio,
+		'Average     ' :  float(np.round(np.mean(profit_history_array))),
+		'Total           ' : float(np.round(np.sum(profit_history_array))),
 		}
 
 	#msg = 'Profit: ' + str(np.round(profit_history[-1],2)) +'\tMn: ' + str(np.round(average_profit))+ '\tW/L: ' + str(np.round(winloss,2)) + '\tPR: ' + str(np.round(profit_ratio,2))+ '\tTotal: ' + str(np.round(total_profit,2))

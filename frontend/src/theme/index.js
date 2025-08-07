@@ -9,8 +9,8 @@ export const colors = {
     paper: '#1a1a1a',
   },
   text: {
-    primary: '#888888',
-    secondary: '#666666',
+    primary: '#ffffff',
+    secondary: '#cccccc',
   },
   success: '#4caf50',
   error: '#f44336',
@@ -164,17 +164,17 @@ export const commonStyles = {
   fullHeight: { height: '100vh' },
   flexColumn: { display: 'flex', flexDirection: 'column' },
   flexCenter: { display: 'flex', justifyContent: 'center', alignItems: 'center' },
-  
+
   // Spacing
   compactPadding: { p: 0.5 },
   tightSpacing: { gap: 0.25 },
   normalSpacing: { gap: 1 },
-  
+
   // Colors
   successText: { color: colors.success },
   errorText: { color: colors.error },
   primaryText: { color: colors.primary },
-  
+
   // Buttons
   buyButton: {
     backgroundColor: colors.success,
@@ -192,7 +192,7 @@ export const commonStyles = {
       backgroundColor: '#d32f2f',
     },
   },
-  
+
   // Chart colors
   chartColors: {
     support: '#00ff00',

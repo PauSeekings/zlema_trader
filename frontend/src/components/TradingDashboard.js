@@ -21,6 +21,7 @@ const TradingDashboard = ({ tradingParams, setTradingParams, overlaySettings, se
 
   const [trades, setTrades] = useState([]);
   const [accountStatus, setAccountStatus] = useState({});
+  const [currentPrice, setCurrentPrice] = useState(null);
   const [loading, setLoading] = useState(false);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [error, setError] = useState(null);
@@ -90,6 +91,12 @@ const TradingDashboard = ({ tradingParams, setTradingParams, overlaySettings, se
     try {
       const response = await axios.get('/api/trades');
       setTrades(response.data.open_trades);
+      // Fetch current price if there are open trades
+      if (response.data.open_trades.length > 0) {
+        fetchCurrentPrice();
+      } else {
+        setCurrentPrice(null);
+      }
     } catch (err) {
       console.error('Failed to fetch trades:', err);
     }
@@ -101,6 +108,30 @@ const TradingDashboard = ({ tradingParams, setTradingParams, overlaySettings, se
       setAccountStatus(response.data);
     } catch (err) {
       console.error('Failed to fetch account status:', err);
+    }
+  };
+
+  const fetchCurrentPrice = async () => {
+    try {
+      // Only fetch current price if there are open trades
+      if (trades.length > 0) {
+        const response = await axios.get('/api/current-price', {
+          params: {
+            pair: tradingParams.pair,
+            timeframe: tradingParams.timeframe,
+            periods: tradingParams.periods
+          }
+        });
+        setCurrentPrice({
+          price: response.data.current_price,
+          mean: response.data.mean_price
+        });
+      } else {
+        setCurrentPrice(null);
+      }
+    } catch (err) {
+      console.error('Failed to fetch current price:', err);
+      setCurrentPrice(null);
     }
   };
 
@@ -117,6 +148,7 @@ const TradingDashboard = ({ tradingParams, setTradingParams, overlaySettings, se
       fetchPolynomialPredictions();
       fetchTrades();
       fetchAccountStatus();
+      fetchCurrentPrice();
     }, 5000);
 
     // Listen for trade events
@@ -196,6 +228,7 @@ const TradingDashboard = ({ tradingParams, setTradingParams, overlaySettings, se
                 keyLevels={keyLevels}
                 polynomialPredictions={polynomialPredictions}
                 overlaySettings={overlaySettings}
+                currentPrice={currentPrice}
               />
             ) : (
               <Typography>No market data available</Typography>

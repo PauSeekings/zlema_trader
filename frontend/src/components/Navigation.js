@@ -85,7 +85,7 @@ const Navigation = ({ tradingParams, setTradingParams, onTrade, overlaySettings,
   return (
     <AppBar position="static" sx={{ backgroundColor: '#1a1a1a' }}>
       <Toolbar sx={{ gap: 0.5 }}>
-        <Typography variant="h6" component="div" sx={{ color: '#888888', minWidth: '120px', fontSize: '0.8rem' }}>
+        <Typography variant="h6" component="div" sx={{ color: '#ffffff', minWidth: '120px', fontSize: '0.8rem' }}>
           ZLEMA Trader
         </Typography>
 
@@ -93,7 +93,7 @@ const Navigation = ({ tradingParams, setTradingParams, onTrade, overlaySettings,
 
         {/* Current Time - Centered */}
         <Typography variant="body2" sx={{
-          color: '#888888',
+          color: '#ffffff',
           minWidth: '100px',
           textAlign: 'center',
           fontSize: '0.85rem',
@@ -107,7 +107,7 @@ const Navigation = ({ tradingParams, setTradingParams, onTrade, overlaySettings,
         {/* Settings Menu */}
         <IconButton
           onClick={handleSettingsClick}
-          sx={{ color: '#888888', padding: '1px' }}
+          sx={{ color: '#ffffff', padding: '1px' }}
           size="small"
         >
           <Settings sx={{ fontSize: '0.9rem' }} />
@@ -297,14 +297,14 @@ const Navigation = ({ tradingParams, setTradingParams, onTrade, overlaySettings,
 
           <Divider sx={{ backgroundColor: '#333', margin: '4px 0' }} />
 
-          <MenuItem sx={{ backgroundColor: '#1a1a1a', '&:hover': { backgroundColor: '#333' }, padding: '2px 6px' }}>
+          <MenuItem sx={{ backgroundColor: '#1a1a1a', '&:hover': { backgroundColor: '#1a1a1a' }, padding: '2px 6px' }}>
             <Typography variant="h6" sx={{ color: '#888888', mb: 0.25, width: '100%', fontSize: '0.75rem' }}>
               Polynomial Predictions
             </Typography>
           </MenuItem>
 
-          <MenuItem sx={{ backgroundColor: '#1a1a1a', '&:hover': { backgroundColor: '#333' }, padding: '1px 6px' }}>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, width: '100%' }}>
+          <MenuItem sx={{ backgroundColor: '#1a1a1a', '&:hover': { backgroundColor: '#1a1a1a' }, padding: '8px 6px' }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, width: '100%' }}>
               <TextField
                 label="Lookback"
                 type="number"
@@ -372,8 +372,8 @@ const Navigation = ({ tradingParams, setTradingParams, onTrade, overlaySettings,
             sx={{
               backgroundColor: '#1a1a1a',
               '& .MuiToggleButton-root': {
-                color: '#888888',
-                borderColor: '#888888',
+                color: '#ffffff',
+                borderColor: '#ffffff',
                 flex: 1,
                 '&.Mui-selected': {
                   backgroundColor: '#4caf50',
@@ -383,7 +383,7 @@ const Navigation = ({ tradingParams, setTradingParams, onTrade, overlaySettings,
                   }
                 },
                 '&:hover': {
-                  backgroundColor: 'rgba(136, 136, 136, 0.1)',
+                  backgroundColor: 'rgba(255, 255, 255, 0.1)',
                 }
               }
             }}
