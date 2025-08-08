@@ -11,6 +11,7 @@ import {
 import axios from 'axios';
 import TradingChart from './TradingChart';
 import TradeControls from './TradeControls';
+import ZeroLagControls from './ZeroLagControls';
 import AccountStatus from './AccountStatus';
 import CollapsibleSidebar from './CollapsibleSidebar';
 
@@ -31,12 +32,13 @@ const TradingDashboard = ({ tradingParams, setTradingParams, overlaySettings, se
       if (!isAutoRefresh) {
         setLoading(true);
       }
-      const response = await axios.get('/api/market-data', {
-        params: {
-          ...tradingParams,
-          window_lengths: '3,12,24,36,48'
-        }
-      });
+      const params = {
+        ...tradingParams,
+        window_lengths: '3,12,24,36,48',
+        zl_length: tradingParams.zl_length || 70
+      };
+      console.log('API params:', params);
+      const response = await axios.get('/api/market-data', { params });
       setMarketData(response.data);
       setError(null);
       if (isInitialLoad) {
@@ -294,6 +296,12 @@ const TradingDashboard = ({ tradingParams, setTradingParams, overlaySettings, se
 
             {/* Account Status */}
             <AccountStatus status={accountStatus} trades={trades} />
+
+            {/* Zero Lag Controls */}
+            <ZeroLagControls
+              tradingParams={tradingParams}
+              setTradingParams={setTradingParams}
+            />
           </Box>
         </Grid>
       </Grid>

@@ -2,14 +2,14 @@ import numpy as np
 from datetime import datetime
 from typing import List, Dict, Any, Tuple
 from libs.tradelib import get_price, get_hist_prices
-from libs.indicators import calc_HA, zlema_ochl, calc_rsi, market_eff, key_levels_composite
+from libs.indicators import calc_HA, zlema_ochl, calc_rsi, market_eff, key_levels_composite, zero_lag_trend_signals
 from config import Config
 
 class DataService:
     def __init__(self, exchange):
         self.exchange = exchange
     
-    def get_market_data(self, pair: str, timeframe: str, periods: int, window_lengths: List[int]) -> Dict[str, Any]:
+    def get_market_data(self, pair: str, timeframe: str, periods: int, window_lengths: List[int], strategy: str = "classic", zl_length: int = 12) -> Dict[str, Any]:
         """Get comprehensive market data with indicators"""
         # Get price data and scale to pips
         n_candles = periods + 50
@@ -33,7 +33,7 @@ class DataService:
         zlema_ohlc_data = np.concatenate([candle[:4] for candle in all_candles[1:]], axis=0)
         median_values = np.median(zlema_ohlc_data, axis=0)
         
-        return {
+        response = {
             "all_candles": [candle.tolist() for candle in all_candles],
             "eff_data": eff_data,
             "std_devs": np.std(zlema_ohlc_data, axis=0).tolist(),
@@ -44,6 +44,25 @@ class DataService:
             "periods": periods,
             "timestamp": datetime.now().isoformat()
         }
+
+        # Optional Zero-Lag strategy overlay
+        if strategy and strategy.lower() == "zero_lag":
+            ochl = display_data[[0,1,2,3], :]  # [Open, Close, High, Low]
+            zl = zero_lag_trend_signals(ochl, length=zl_length, mult=1.2)
+            # Convert numpy to lists for JSON, handle special values
+            response["zl"] = {}
+            for k, v in zl.items():
+                if isinstance(v, np.ndarray):
+                    if v.dtype == bool:
+                        response["zl"][k] = v.astype(int).tolist()  # Convert bool to int
+                    else:
+                        # Replace NaN/inf with None for JSON compatibility
+                        v_clean = np.where(np.isfinite(v), v, None)
+                        response["zl"][k] = v_clean.tolist()
+                else:
+                    response["zl"][k] = v
+
+        return response
     
     def get_polynomial_predictions(self, pair: str, timeframe: str, periods: int, 
                                  lookback: int = 20, forecast_periods: int = 5, 

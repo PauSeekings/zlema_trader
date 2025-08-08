@@ -15,7 +15,8 @@ const DEFAULT_TRADING_PARAMS = {
   timeframe: "M5",
   periods: 48,
   units: 10000,
-  window_lengths: [3, 12, 24, 36, 48]
+  window_lengths: [3, 12, 24, 36, 48],
+  strategy: 'classic'
 };
 
 // Default overlay settings

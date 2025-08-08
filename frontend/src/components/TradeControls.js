@@ -35,7 +35,7 @@ const TradeControls = ({ tradingParams, setTradingParams, onTrade }) => {
         {options.map((option) => {
           const optionValue = typeof option === 'object' ? option.value : option;
           const optionLabel = typeof option === 'object' ? option.label : (isNumeric ? option.toLocaleString() : option);
-          
+
           return (
             <MenuItem key={optionValue} value={optionValue}>
               {optionLabel}
@@ -101,6 +101,8 @@ const TradeControls = ({ tradingParams, setTradingParams, onTrade }) => {
           </Button>
         </Grid>
       </Grid>
+
+
     </Paper>
   );
 };

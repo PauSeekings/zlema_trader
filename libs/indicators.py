@@ -472,3 +472,116 @@ def aggregate_ha_zlema_multi(prices, pip_thresholds, zlema_windows):
 
 
 
+
+def zero_lag_trend_signals(ochl: np.ndarray, length: int = 70, mult: float = 1.2) -> dict:
+    """Zero Lag Trend Signals (single timeframe)
+    Mirrors the Pine Script logic without MTF: computes ZLEMA, deviation bands, trend regime, and entry signals.
+
+    Args:
+        ochl: array shaped (4, N) in order [Open, Close, High, Low]
+        length: ZLEMA/ATR length
+        mult: band multiplier
+
+    Returns:
+        dict with keys: 'zlema', 'upper_band', 'lower_band', 'trend',
+        'bull_entry', 'bear_entry', 'bull_entry_level', 'bear_entry_level',
+        'trend_up_level', 'trend_down_level'
+    """
+    if ochl.shape[0] != 4:
+        raise ValueError("ochl must have shape (4, N) -> [Open, Close, High, Low]")
+
+    open_p = ochl[OPEN_PRICE]
+    close_p = ochl[CLOSE_PRICE]
+    high_p = ochl[HIGH_PRICE]
+    low_p = ochl[LOW_PRICE]
+    n = close_p.size
+
+    # Effective lengths based on available bars
+    n = close_p.size
+    eff_len = max(2, min(length, max(2, n // 3)))
+    # ZLEMA: EMA of adjusted price (2*price - price[lag])
+    lag = (eff_len - 1) // 2
+    price_adj = close_p.copy()
+    if lag > 0 and n > lag:
+        price_adj[lag:] = 2 * close_p[lag:] - close_p[:-lag]
+    z = ema(price_adj, eff_len)
+
+    # Volatility: highest(ATR(length), length*3) * mult
+    atr_vals = atr(high_p, low_p, close_p, eff_len)
+    win = max(1, min(int(length * 3), n))
+    vol = np.full(n, np.nan)
+    for i in range(0, n):
+        start = 0 if i + 1 < win else i - win + 1
+        vol[i] = np.max(atr_vals[start:i + 1])
+    vol *= mult
+
+    upper = z + vol
+    lower = z - vol
+
+    # Trend regime: Pine Script logic
+    # if ta.crossover(close, zlema+volatility) -> trend := 1
+    # if ta.crossunder(close, zlema-volatility) -> trend := -1
+    trend = np.zeros(n, dtype=int)
+    for i in range(1, n):
+        # Crossover: close crosses above upper band (zlema + volatility)
+        if (not np.isnan(vol[i]) and close_p[i - 1] <= (z[i - 1] + vol[i - 1]) and 
+            close_p[i] > (z[i] + vol[i])):
+            trend[i] = 1
+        # Crossunder: close crosses below lower band (zlema - volatility)  
+        elif (not np.isnan(vol[i]) and close_p[i - 1] >= (z[i - 1] - vol[i - 1]) and 
+              close_p[i] < (z[i] - vol[i])):
+            trend[i] = -1
+        else:
+            # Persist previous trend (var trend behavior from Pine)
+            trend[i] = trend[i - 1]
+
+    # Entry signals: close cross ZLEMA while trend persists
+    bull_entry = np.zeros(n, dtype=bool)
+    bear_entry = np.zeros(n, dtype=bool)
+    for i in range(1, n):
+        co_up = close_p[i - 1] <= z[i - 1] and close_p[i] > z[i]
+        co_dn = close_p[i - 1] >= z[i - 1] and close_p[i] < z[i]
+        bull_entry[i] = co_up and (trend[i] == 1) and (trend[i - 1] == 1)
+        bear_entry[i] = co_dn and (trend[i] == -1) and (trend[i - 1] == -1)
+
+    bull_entry_level = np.full(n, np.nan)
+    bear_entry_level = np.full(n, np.nan)
+    mask_bull = bull_entry & ~np.isnan(vol)
+    mask_bear = bear_entry & ~np.isnan(vol)
+    bull_entry_level[mask_bull] = z[mask_bull] - 1.5 * vol[mask_bull]
+    bear_entry_level[mask_bear] = z[mask_bear] + 1.5 * vol[mask_bear]
+
+    # Trend change signals: Pine Script plotshape logic
+    # plotshape(ta.crossover(trend, 0) ? zlema-volatility : na, "Bullish Trend", ...)
+    # plotshape(ta.crossunder(trend, 0) ? zlema+volatility : na, "Bearish Trend", ...)
+    trend_up_signal = np.zeros(n, dtype=bool)
+    trend_down_signal = np.zeros(n, dtype=bool)
+    trend_up_level = np.full(n, np.nan)
+    trend_down_level = np.full(n, np.nan)
+    
+    for i in range(1, n):
+        # Crossover: trend crosses above 0 (trend changes to bullish)
+        if trend[i] == 1 and trend[i - 1] <= 0:
+            trend_up_signal[i] = True
+            if not np.isnan(vol[i]):
+                trend_up_level[i] = z[i] - vol[i]
+        # Crossunder: trend crosses below 0 (trend changes to bearish)
+        if trend[i] == -1 and trend[i - 1] >= 0:
+            trend_down_signal[i] = True
+            if not np.isnan(vol[i]):
+                trend_down_level[i] = z[i] + vol[i]
+
+    return {
+        'zlema': z,
+        'upper_band': upper,
+        'lower_band': lower,
+        'trend': trend,
+        'bull_entry': bull_entry,
+        'bear_entry': bear_entry,
+        'bull_entry_level': bull_entry_level,
+        'bear_entry_level': bear_entry_level,
+        'trend_up_signal': trend_up_signal,
+        'trend_down_signal': trend_down_signal,
+        'trend_up_level': trend_up_level,
+        'trend_down_level': trend_down_level,
+    }

@@ -80,12 +80,14 @@ async def get_market_data(
     pair: str = Config.DEFAULT_PAIR,
     timeframe: str = Config.DEFAULT_TIMEFRAME,
     periods: int = Config.DEFAULT_PERIODS,
-    window_lengths: str = "3,12,24,36,48"
+    window_lengths: str = "3,12,24,36,48",
+    strategy: str = "classic",
+    zl_length: int = 70
 ):
     """Get market data with technical indicators"""
     try:
         windows = [int(x) for x in window_lengths.split(",")]
-        return data_service.get_market_data(pair, timeframe, periods, windows)
+        return data_service.get_market_data(pair, timeframe, periods, windows, strategy, zl_length)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

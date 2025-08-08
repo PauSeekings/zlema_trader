@@ -20,6 +20,7 @@ const TradingChart = ({ marketData, keyLevels, polynomialPredictions, overlaySet
   console.log('Market data received:', marketData);
   console.log('Key levels received:', keyLevels);
   console.log('Overlay settings received:', overlaySettings);
+  console.log('ZL data received:', marketData.zl);
   const { all_candles, std_devs, medians, rsi_data, eff_data } = marketData;
 
   // Create subplots: 4 rows, shared x-axis
@@ -32,9 +33,11 @@ const TradingChart = ({ marketData, keyLevels, polynomialPredictions, overlaySet
   const totalLength = baseLength + predictionLength;
   const xAxis = Array.from({ length: baseLength }, (_, i) => i);
 
-  // Plot all candlesticks from all_candles (main plot)
-  all_candles.forEach((candle, index) => {
-    const opacity = index === 0 ? 0.5 : 0.1; // Main data more visible
+  // Plot candlesticks - if Zero Lag is active, only show first set, otherwise show all
+  const isZeroLag = Boolean(marketData.zl);
+  if (isZeroLag) {
+    // Only plot the first candlestick set when Zero Lag is active
+    const candle = all_candles[0];
     data.push({
       type: 'candlestick',
       x: xAxis,
@@ -42,15 +45,32 @@ const TradingChart = ({ marketData, keyLevels, polynomialPredictions, overlaySet
       high: candle[2],
       low: candle[3],
       close: candle[1],
-      opacity: opacity,
+      opacity: 0.3, // Slightly faded to let ZL overlay stand out
       xaxis: 'x',
       yaxis: 'y',
-      layer: 'above' // Ensure candlesticks are above key levels
+      layer: 'above'
     });
-  });
+  } else {
+    // Plot all candlesticks normally
+    all_candles.forEach((candle, index) => {
+      const opacity = index === 0 ? 0.5 : 0.1; // Main data more visible
+      data.push({
+        type: 'candlestick',
+        x: xAxis,
+        open: candle[0],
+        high: candle[2],
+        low: candle[3],
+        close: candle[1],
+        opacity: opacity,
+        xaxis: 'x',
+        yaxis: 'y',
+        layer: 'above' // Ensure candlesticks are above key levels
+      });
+    });
+  }
 
-  // Add close price line with conditional coloring based on median
-  if (medians && all_candles[0][1]) {
+  // Add close price line with conditional coloring based on median (unless Zero Lag is active)
+  if (!isZeroLag && medians && all_candles[0][1]) {
     const closePrices = all_candles[0][1];
     const greenSegments = [];
     const redSegments = [];
@@ -90,8 +110,8 @@ const TradingChart = ({ marketData, keyLevels, polynomialPredictions, overlaySet
     });
   }
 
-  // Add median line
-  if (medians) {
+  // Add median line (unless Zero Lag is active)
+  if (!isZeroLag && medians) {
     data.push({
       type: 'scatter',
       mode: 'lines',
@@ -102,6 +122,125 @@ const TradingChart = ({ marketData, keyLevels, polynomialPredictions, overlaySet
       yaxis: 'y',
       layer: 'above' // Ensure this is above key levels
     });
+  }
+
+  // Zero-Lag overlay (if provided by backend)
+  if (marketData.zl) {
+    const { zlema, upper_band, lower_band, trend, bull_entry_level, bear_entry_level, trend_up_level, trend_down_level } = marketData.zl;
+
+    // Main ZLEMA line (always visible)
+    data.push({
+      type: 'scatter',
+      mode: 'lines',
+      x: xAxis,
+      y: zlema,
+      line: { color: 'rgba(255,255,255,0.8)', width: 2 },
+      xaxis: 'x',
+      yaxis: 'y',
+      name: 'ZLEMA'
+    });
+
+    // Upper and lower bands (always show both)
+    data.push({
+      type: 'scatter',
+      mode: 'lines',
+      x: xAxis,
+      y: upper_band,
+      line: { color: 'rgba(255,17,0,0.5)', width: 1, dash: 'dot' },
+      xaxis: 'x',
+      yaxis: 'y',
+      name: 'Upper Band'
+    });
+    data.push({
+      type: 'scatter',
+      mode: 'lines',
+      x: xAxis,
+      y: lower_band,
+      line: { color: 'rgba(0,255,187,0.5)', width: 1, dash: 'dot' },
+      xaxis: 'x',
+      yaxis: 'y',
+      name: 'Lower Band'
+    });
+
+    // Trend Change Markers (BIG arrows - size.small in Pine)
+    const trendBullX = [], trendBullY = [];
+    const trendBearX = [], trendBearY = [];
+    for (let i = 0; i < zlema.length; i++) {
+      if (trend_up_level[i] !== null && Number.isFinite(trend_up_level[i])) {
+        trendBullX.push(i);
+        trendBullY.push(trend_up_level[i]);
+      }
+      if (trend_down_level[i] !== null && Number.isFinite(trend_down_level[i])) {
+        trendBearX.push(i);
+        trendBearY.push(trend_down_level[i]);
+      }
+    }
+
+    if (trendBullX.length > 0) {
+      data.push({
+        type: 'scatter',
+        mode: 'markers',
+        x: trendBullX,
+        y: trendBullY,
+        marker: { color: 'rgba(0,255,187,1.0)', size: 16, symbol: 'triangle-up' },
+        xaxis: 'x',
+        yaxis: 'y',
+        name: 'Bullish Trend Change'
+      });
+    }
+
+    if (trendBearX.length > 0) {
+      data.push({
+        type: 'scatter',
+        mode: 'markers',
+        x: trendBearX,
+        y: trendBearY,
+        marker: { color: 'rgba(255,17,0,1.0)', size: 16, symbol: 'triangle-down' },
+        xaxis: 'x',
+        yaxis: 'y',
+        name: 'Bearish Trend Change'
+      });
+    }
+
+    // Entry markers (small arrows - size.tiny in Pine)
+    const bullX = [], bullY = [];
+    const bearX = [], bearY = [];
+    for (let i = 0; i < zlema.length; i++) {
+      if (bull_entry_level[i] !== null && Number.isFinite(bull_entry_level[i])) {
+        bullX.push(i);
+        bullY.push(bull_entry_level[i]);
+      }
+      if (bear_entry_level[i] !== null && Number.isFinite(bear_entry_level[i])) {
+        bearX.push(i);
+        bearY.push(bear_entry_level[i]);
+      }
+    }
+
+    if (bullX.length > 0) {
+      data.push({
+        type: 'scatter',
+        mode: 'markers',
+        x: bullX,
+        y: bullY,
+        marker: { color: 'rgba(0,255,187,0.8)', size: 8, symbol: 'triangle-up' },
+        xaxis: 'x',
+        yaxis: 'y',
+        name: 'Bull Entry'
+      });
+    }
+
+    if (bearX.length > 0) {
+      data.push({
+        type: 'scatter',
+        mode: 'markers',
+        x: bearX,
+        y: bearY,
+        marker: { color: 'rgba(255,17,0,0.8)', size: 8, symbol: 'triangle-down' },
+        xaxis: 'x',
+        yaxis: 'y',
+        name: 'Bear Entry'
+      });
+    }
   }
 
   // Add polynomial predictions
