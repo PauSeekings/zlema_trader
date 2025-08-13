@@ -4,10 +4,14 @@ from typing import List, Dict, Any, Tuple
 from libs.tradelib import get_price, get_hist_prices
 from libs.indicators import calc_HA, zlema_ochl, calc_rsi, market_eff, key_levels_composite, zero_lag_trend_signals
 from config import Config
+from .base_service import BaseService
 
-class DataService:
+class DataService(BaseService):
     def __init__(self, exchange):
-        self.exchange = exchange
+        super().__init__(exchange)
+    
+    def get_service_name(self) -> str:
+        return "DataService"
     
     def get_market_data(self, pair: str, timeframe: str, periods: int, window_lengths: List[int], strategy: str = "classic", zl_length: int = 12) -> Dict[str, Any]:
         """Get comprehensive market data with indicators"""
@@ -32,17 +36,15 @@ class DataService:
         zlema_ohlc_data = np.concatenate([candle[:4] for candle in all_candles[1:]], axis=0)
         median_values = np.median(zlema_ohlc_data, axis=0)
         
-        response = {
+        data = {
             "all_candles": [candle.tolist() for candle in all_candles],
             "eff_data": eff_data,
             "std_devs": (np.std(zlema_ohlc_data, axis=0) * Config.PIP_MULTIPLIER).tolist(),
             "medians": median_values.tolist(),
-            "rsi_data": rsi_data,
-            "pair": pair,
-            "timeframe": timeframe,
-            "periods": periods,
-            "timestamp": datetime.now().isoformat()
+            "rsi_data": rsi_data
         }
+        
+        response = self.create_response(data, pair=pair, timeframe=timeframe, periods=periods)
 
         # Optional Zero-Lag strategy overlay
         if strategy and strategy.lower() == "zero_lag":
@@ -148,15 +150,8 @@ class DataService:
         # Calculate key levels with optimized parameters
         key_levels = key_levels_composite(prices, volume, max(5, min(window, periods//10)), threshold)
         
-        return {
-            "key_levels": self._convert_numpy(key_levels),
-            "pair": pair,
-            "timeframe": timeframe,
-            "periods": periods,
-            "window": window,
-            "threshold": threshold,
-            "timestamp": datetime.now().isoformat()
-        }
+        data = {"key_levels": key_levels}
+        return self.create_response(data, pair=pair, timeframe=timeframe, periods=periods, window=window, threshold=threshold)
     
 
     
@@ -169,17 +164,4 @@ class DataService:
         zlema_list = [zlema_ochl(data_copy, window) for window in window_lengths]
         return ha_zlema_list, zlema_list
     
-    @staticmethod
-    def _convert_numpy(obj):
-        """Convert numpy objects to JSON-serializable types"""
-        if isinstance(obj, np.ndarray):
-            return obj.tolist()
-        elif isinstance(obj, dict):
-            return {k: DataService._convert_numpy(v) for k, v in obj.items()}
-        elif isinstance(obj, list):
-            return [DataService._convert_numpy(item) for item in obj]
-        elif isinstance(obj, (np.integer, np.int64)):
-            return int(obj)
-        elif isinstance(obj, (np.floating, np.float64)):
-            return float(obj)
-        return obj
+    # Removed duplicate _convert_numpy method - now using BaseService.convert_numpy_to_json

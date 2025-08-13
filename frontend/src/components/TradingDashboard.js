@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, memo, useCallback } from 'react';
 import {
   Box,
   Grid,
@@ -16,7 +16,7 @@ import AccountStatus from './AccountStatus';
 import CollapsibleSidebar from './CollapsibleSidebar';
 import { DEFAULT_WINDOW_LENGTHS } from '../App';
 
-const TradingDashboard = ({ tradingParams, setTradingParams, overlaySettings, setOverlaySettings, polynomialParams, setPolynomialParams, strategyToggles, setStrategyToggles }) => {
+const TradingDashboard = memo(({ tradingParams, setTradingParams, overlaySettings, setOverlaySettings, polynomialParams, setPolynomialParams, strategyToggles, setStrategyToggles }) => {
   const [marketData, setMarketData] = useState(null);
   const [keyLevels, setKeyLevels] = useState(null);
   const [polynomialPredictions, setPolynomialPredictions] = useState(null);
@@ -31,7 +31,7 @@ const TradingDashboard = ({ tradingParams, setTradingParams, overlaySettings, se
 
 
 
-  const fetchMarketData = async (isAutoRefresh = false) => {
+  const fetchMarketData = useCallback(async (isAutoRefresh = false) => {
     try {
       if (!isAutoRefresh) {
         setLoading(true);
@@ -58,7 +58,7 @@ const TradingDashboard = ({ tradingParams, setTradingParams, overlaySettings, se
         setLoading(false);
       }
     }
-  };
+  }, [tradingParams, strategyToggles]);
 
   const fetchKeyLevels = async () => {
     try {
@@ -427,6 +427,8 @@ const TradingDashboard = ({ tradingParams, setTradingParams, overlaySettings, se
       </Grid>
     </Box>
   );
-};
+});
+
+TradingDashboard.displayName = 'TradingDashboard';
 
 export default TradingDashboard; 

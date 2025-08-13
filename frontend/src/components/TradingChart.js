@@ -1,11 +1,33 @@
-import React from 'react';
+import React, { memo, useMemo } from 'react';
 import Plot from 'react-plotly.js';
 import { Box, Typography } from '@mui/material';
 
-const TradingChart = ({ marketData, keyLevels, polynomialPredictions, overlaySettings, currentPrice, strategyToggles, tradingParams }) => {
-  if (!marketData || !marketData.all_candles) {
+const TradingChart = memo(({ marketData, keyLevels, polynomialPredictions, overlaySettings, currentPrice, strategyToggles, tradingParams }) => {
+  // Memoize expensive calculations to prevent re-computation on every render
+  const chartData = useMemo(() => {
+    if (!marketData || !marketData.all_candles) {
+      return null;
+    }
+    const { all_candles, std_devs, medians, rsi_data, eff_data } = marketData;
+    const subplotData = [];
+    const data = []; // Main data array for candlesticks and key levels
+    const keyLevelsData = []; // Separate array for key levels (plotted first)
+
+    // Calculate total x-axis length including predictions
+    const baseLength = all_candles[0][0].length;
+    const predictionLength = polynomialPredictions && polynomialPredictions.predictions ? polynomialPredictions.predictions.length : 0;
+    const totalLength = baseLength + predictionLength;
+    const xAxis = Array.from({ length: baseLength }, (_, i) => i);
+
+    return { all_candles, std_devs, medians, rsi_data, eff_data, subplotData, data, keyLevelsData, baseLength, predictionLength, totalLength, xAxis };
+  }, [marketData, polynomialPredictions]);
+
+  // Early return for loading state
+  if (!chartData) {
     return <Typography>Loading chart...</Typography>;
   }
+
+  const { all_candles, std_devs, medians, rsi_data, eff_data, subplotData, data, keyLevelsData, baseLength, predictionLength, totalLength, xAxis } = chartData;
 
   // Ensure overlaySettings has default values
   const defaultOverlaySettings = {
@@ -16,22 +38,6 @@ const TradingChart = ({ marketData, keyLevels, polynomialPredictions, overlaySet
     pivots: false,
     ...overlaySettings
   };
-
-  console.log('Market data received:', marketData);
-  console.log('Key levels received:', keyLevels);
-  console.log('Overlay settings received:', overlaySettings);
-  console.log('ZL data received:', marketData.zl);
-  const { all_candles, std_devs, medians, rsi_data, eff_data } = marketData;
-
-  // Create subplots: 4 rows, shared x-axis
-  const subplotData = [];
-  const data = []; // Main data array for candlesticks and key levels
-  const keyLevelsData = []; // Separate array for key levels (plotted first)
-  // Calculate total x-axis length including predictions
-  const baseLength = all_candles[0][0].length;
-  const predictionLength = polynomialPredictions && polynomialPredictions.predictions ? polynomialPredictions.predictions.length : 0;
-  const totalLength = baseLength + predictionLength;
-  const xAxis = Array.from({ length: baseLength }, (_, i) => i);
 
   // Plot candlesticks based on strategy toggles
   const isZeroLag = Boolean(marketData.zl) && (strategyToggles?.zero_lag === true);
@@ -44,14 +50,7 @@ const TradingChart = ({ marketData, keyLevels, polynomialPredictions, overlaySet
       const openPrices = candle[0];
       const closePrices = candle[1];
       const opacity = 0.2
-      // DEBUG: Log first few points to console
-      if (index === 0) {
-        console.log('DEBUG: First 5 points of first ZLEMA timeframe:');
-        for (let i = 0; i < Math.min(5, openPrices.length); i++) {
-          const isBullish = closePrices[i] >= openPrices[i];
-          console.log(`Point ${i}: Open=${openPrices[i]}, Close=${closePrices[i]}, Bullish=${isBullish}`);
-        }
-      }
+      // Debug logging removed for performance
 
       // Simpler approach: Plot each point individually with correct color
       for (let i = 0; i < openPrices.length - 1; i++) {
@@ -918,10 +917,7 @@ const TradingChart = ({ marketData, keyLevels, polynomialPredictions, overlaySet
   // Combine data: key levels first, then ribbons/indicators, then candlesticks LAST
   const combinedData = [...keyLevelsData, ...data, ...subplotData, ...candlestickData];
 
-  console.log('Main data:', data);
-  console.log('Subplot data:', subplotData);
-  console.log('Combined data:', combinedData);
-  console.log('Layout:', layout);
+  // Debug logs removed for performance
 
   return (
     <Box>
@@ -941,6 +937,8 @@ const TradingChart = ({ marketData, keyLevels, polynomialPredictions, overlaySet
       />
     </Box>
   );
-};
+});
+
+TradingChart.displayName = 'TradingChart';
 
 export default TradingChart; 

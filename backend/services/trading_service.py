@@ -2,14 +2,18 @@ import time
 from typing import List, Dict, Any, Optional
 from libs.tradelib import get_price, put_order, close_trade, get_balance, update_stats_dict
 from config import Config
+from .base_service import BaseService
 
-class TradingService:
+class TradingService(BaseService):
     def __init__(self, exchange, account_id):
-        self.exchange = exchange
+        super().__init__(exchange)
         self.account_id = account_id
         self.open_trades = []
         self.profit_history = []
         self.account_mode = "test"
+    
+    def get_service_name(self) -> str:
+        return "TradingService"
     
     def get_account_status(self) -> Dict[str, Any]:
         """Get comprehensive account status"""
