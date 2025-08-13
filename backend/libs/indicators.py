@@ -165,6 +165,8 @@ def zlema_v2(price,gain, minperiod):
 	return zl
 
 
+
+
 def update_HA(HA, price):
 	ha_open  =  (HA[OPEN_PRICE] + HA[CLOSE_PRICE])/2
 	ha_close =(price[OPEN_PRICE] + price[CLOSE_PRICE] + price[HIGH_PRICE] + price[LOW_PRICE])/4
@@ -545,14 +547,15 @@ def zero_lag_trend_signals(ochl: np.ndarray, length: int = 70, mult: float = 1.2
         'trend_up_level': trend_up_level,
         'trend_down_level': trend_down_level,
     }
-def detect_support_resistance(prices, window=20, threshold=0.001):
+def detect_support_resistance(prices, window=20, threshold=0.001, max_levels=10):
     """
-    Detect support and resistance levels using pivot points and volume analysis.
+    Detect support and resistance levels using multiple methods.
     
     Args:
         prices: OCHL data array (4, N)
         window: Lookback window for level detection
         threshold: Minimum price distance for level significance
+        max_levels: Maximum number of levels to return for each type
     
     Returns:
         dict: {'support': levels, 'resistance': levels, 'strength': scores}
@@ -560,29 +563,107 @@ def detect_support_resistance(prices, window=20, threshold=0.001):
     highs = prices[HIGH_PRICE]
     lows = prices[LOW_PRICE]
     closes = prices[CLOSE_PRICE]
+    n_periods = len(highs)
     
-    # Find local maxima and minima
+    # Method 1: Local extrema with different window sizes
     resistance_levels = []
     support_levels = []
     
-    for i in range(window, len(highs) - window):
-        # Resistance (local maxima)
-        if all(highs[i] >= highs[i-window:i]) and all(highs[i] >= highs[i+1:i+window+1]):
-            resistance_levels.append((i, highs[i]))
-        
-        # Support (local minima)  
-        if all(lows[i] <= lows[i-window:i]) and all(lows[i] <= lows[i+1:i+window+1]):
-            support_levels.append((i, lows[i]))
+    # Use multiple window sizes to catch different timeframe levels
+    windows = [window//3, window//2, window, window*2] if window >= 6 else [window]
     
-    # Cluster nearby levels
-    resistance_clusters = cluster_levels([level[1] for level in resistance_levels], threshold)
-    support_clusters = cluster_levels([level[1] for level in support_levels], threshold)
+    for w in windows:
+        w = max(3, min(w, n_periods//4))  # Ensure valid window size
+        
+        for i in range(w, n_periods - w):
+            # Resistance (local maxima) - more lenient condition
+            if (highs[i] >= max(highs[i-w:i]) and 
+                highs[i] >= max(highs[i+1:i+w+1])):
+                resistance_levels.append((i, highs[i], w))
+            
+            # Support (local minima) - more lenient condition
+            if (lows[i] <= min(lows[i-w:i]) and 
+                lows[i] <= min(lows[i+1:i+w+1])):
+                support_levels.append((i, lows[i], w))
+    
+    # Method 2: Horizontal levels (price levels that were touched multiple times)
+    # Find price levels that were tested multiple times
+    price_bins = 50
+    high_range = np.max(highs) - np.min(highs)
+    
+    # Test resistance levels (more percentiles for more levels)
+    for percentile in [95, 90, 85, 80, 75, 70, 65, 60, 55, 50]:
+        level = np.percentile(highs, percentile)
+        touches = sum(1 for h in highs if abs(h - level) <= high_range * 0.015)
+        if touches >= 1:  # More lenient - level touched at least once
+            resistance_levels.append((0, level, touches + percentile/100))  # Add percentile weight
+    
+    # Test support levels (more percentiles for more levels)
+    for percentile in [5, 10, 15, 20, 25, 30, 35, 40, 45, 50]:
+        level = np.percentile(lows, percentile)
+        touches = sum(1 for l in lows if abs(l - level) <= high_range * 0.015)
+        if touches >= 1:  # More lenient - level touched at least once
+            support_levels.append((0, level, touches + (100-percentile)/100))  # Add percentile weight
+    
+    # Method 3: Round number levels (psychological levels)
+    current_price = closes[-1]
+    price_range = high_range
+    
+    # Generate round number levels around current price (more aggressive)
+    if current_price > 1:
+        # For forex pairs - use smaller increments for more levels
+        increment = 0.0005 if price_range < 0.1 else 0.001
+        base = round(current_price, 4)
+        
+        # Generate more round number levels
+        for i in range(-50, 51):
+            level = base + (i * increment)
+            if np.min(lows) <= level <= np.max(highs):
+                # Add psychological strength based on round number significance
+                strength = 3 if i % 10 == 0 else 2 if i % 5 == 0 else 1
+                if level > current_price:
+                    resistance_levels.append((0, level, strength))
+                else:
+                    support_levels.append((0, level, strength))
+    
+    # Remove duplicates and sort by strength/importance
+    def deduplicate_and_rank(levels, is_resistance=True):
+        if not levels:
+            return []
+            
+        # Remove very close levels
+        unique_levels = []
+        sorted_levels = sorted(levels, key=lambda x: x[1])
+        
+        for idx, price, strength in sorted_levels:
+            too_close = False
+            for existing in unique_levels:
+                if abs(price - existing[1]) < threshold:
+                    # Keep the stronger level
+                    if strength > existing[2]:
+                        unique_levels.remove(existing)
+                        unique_levels.append((idx, price, strength))
+                    too_close = True
+                    break
+            if not too_close:
+                unique_levels.append((idx, price, strength))
+        
+        # Sort by strength (higher is better) and take top levels
+        unique_levels.sort(key=lambda x: x[2], reverse=True)
+        return unique_levels[:max_levels]
+    
+    resistance_final = deduplicate_and_rank(resistance_levels, True)
+    support_final = deduplicate_and_rank(support_levels, False)
+    
+    # Extract just the price levels
+    resistance_prices = [level[1] for level in resistance_final]
+    support_prices = [level[1] for level in support_final]
     
     return {
-        'resistance': resistance_clusters,
-        'support': support_clusters,
-        'resistance_points': resistance_levels,
-        'support_points': support_levels
+        'resistance': resistance_prices,
+        'support': support_prices,
+        'resistance_points': [(level[0], level[1]) for level in resistance_final],
+        'support_points': [(level[0], level[1]) for level in support_final]
     }
 
 def cluster_levels(levels, threshold):
@@ -725,11 +806,13 @@ def key_levels_composite(prices, volume, window=20, threshold=0.001):
     Returns:
         dict: All detected key levels with confidence scores
     """
-    # Support/Resistance detection
-    sr_levels = detect_support_resistance(prices, window, threshold)
+    # Support/Resistance detection (get 10 of each)
+    sr_levels = detect_support_resistance(prices, window, threshold, max_levels=10)
     
-    # Pivot points
-    pivots = pivot_points(prices)
+    # Pivot points (multiple methods)
+    pivots_standard = pivot_points(prices, 'standard')
+    pivots_fibonacci = pivot_points(prices, 'fibonacci') 
+    pivots_camarilla = pivot_points(prices, 'camarilla')
     
     # Volume profile
     vol_profile = volume_profile_levels(prices[CLOSE_PRICE], volume)
@@ -742,55 +825,101 @@ def key_levels_composite(prices, volume, window=20, threshold=0.001):
     # Combine and score levels
     all_levels = []
     
-    # Add support/resistance with high confidence
-    for level in sr_levels['support']:
-        all_levels.append({'price': float(level), 'type': 'support', 'confidence': 0.8})
-    for level in sr_levels['resistance']:
-        all_levels.append({'price': float(level), 'type': 'resistance', 'confidence': 0.8})
+    # Add ALL support/resistance levels with high confidence (prioritize these)
+    for i, level in enumerate(sr_levels['support']):
+        # Give higher confidence to first few levels (they're ranked by strength)
+        confidence = 0.9 - (i * 0.01) if i < 10 else 0.8
+        all_levels.append({'price': float(level), 'type': 'support', 'confidence': confidence})
+    for i, level in enumerate(sr_levels['resistance']):
+        # Give higher confidence to first few levels (they're ranked by strength)  
+        confidence = 0.9 - (i * 0.01) if i < 10 else 0.8
+        all_levels.append({'price': float(level), 'type': 'resistance', 'confidence': confidence})
     
-    # Add only the most important pivot points (main pivot, R1, S1)
-    important_pivots = ['pivot', 'r1', 's1']
-    for key in important_pivots:
-        if key in pivots:
-            all_levels.append({'price': float(pivots[key]), 'type': 'pivots', 'confidence': 0.6})
+    # Add ALL pivot points from different methods
+    # Standard pivots
+    pivot_keys = ['pivot', 'r1', 'r2', 'r3', 's1', 's2', 's3']
+    for key in pivot_keys:
+        if key in pivots_standard:
+            confidence = 0.7 if key in ['pivot', 'r1', 's1'] else 0.6
+            all_levels.append({'price': float(pivots_standard[key]), 'type': 'pivots', 'confidence': confidence})
     
-    # Add only top 3 volume profile levels (most significant)
-    vol_levels = sorted(vol_profile['high_volume_levels'], key=lambda x: abs(x - vol_profile['poc']))[:3]
-    for level in vol_levels:
-        all_levels.append({'price': float(level), 'type': 'volume', 'confidence': 0.7})
+    # Fibonacci pivots
+    fib_pivot_keys = ['pivot', 'r1', 'r2', 'r3', 's1', 's2', 's3']
+    for key in fib_pivot_keys:
+        if key in pivots_fibonacci:
+            confidence = 0.65 if key in ['pivot', 'r1', 's1'] else 0.55
+            all_levels.append({'price': float(pivots_fibonacci[key]), 'type': 'pivots', 'confidence': confidence})
     
-    # Add only key Fibonacci levels (0.382, 0.618)
-    key_fib_levels = ['fib_0.382', 'fib_0.618']
-    for key in key_fib_levels:
+    # Camarilla pivots (these use different naming)
+    cam_keys = ['pivot', 'h1', 'h2', 'h3', 'h4', 'h5', 'l1', 'l2', 'l3', 'l4', 'l5']
+    for key in cam_keys:
+        if key in pivots_camarilla:
+            confidence = 0.6 if key == 'pivot' else 0.5
+            all_levels.append({'price': float(pivots_camarilla[key]), 'type': 'pivots', 'confidence': confidence})
+    
+    # Add top 5 volume profile levels (more comprehensive)
+    vol_levels = sorted(vol_profile['high_volume_levels'], key=lambda x: abs(x - vol_profile['poc']))[:5]
+    for i, level in enumerate(vol_levels):
+        confidence = 0.8 if i == 0 else 0.7 - (i * 0.1)  # Decreasing confidence
+        all_levels.append({'price': float(level), 'type': 'volume', 'confidence': max(confidence, 0.4)})
+    
+    # Add Point of Control (POC) as a high-confidence volume level
+    all_levels.append({'price': float(vol_profile['poc']), 'type': 'volume', 'confidence': 0.9})
+    
+    # Add ALL Fibonacci levels (they're all important)
+    fib_keys = ['fib_0.236', 'fib_0.382', 'fib_0.5', 'fib_0.618', 'fib_0.786']
+    for key in fib_keys:
         if key in fib_levels:
-            level_type = 'fibonacci'
-            all_levels.append({'price': float(fib_levels[key]), 'type': level_type, 'confidence': 0.5})
+            # Higher confidence for key levels
+            confidence = 0.7 if key in ['fib_0.382', 'fib_0.618'] else 0.6
+            all_levels.append({'price': float(fib_levels[key]), 'type': 'fibonacci', 'confidence': confidence})
     
-    # Cluster nearby levels to avoid duplicates
+    # Minimal clustering - preserve almost all support/resistance levels
     clustered_levels = []
-    min_distance = 5.0  # Minimum 5 pip distance between levels
     
-    for level in all_levels:
-        # Check if this level is too close to existing levels
+    # First, add all support and resistance levels with minimal clustering
+    sr_levels_only = [l for l in all_levels if l['type'] in ['support', 'resistance']]
+    other_levels = [l for l in all_levels if l['type'] not in ['support', 'resistance']]
+    
+    # For S/R levels, only cluster if they're extremely close (less than 0.1 pip)
+    for level in sr_levels_only:
         too_close = False
         for existing in clustered_levels:
-            # Use smaller distance for Fibonacci levels since they can be closer together
-            distance_threshold = 2.0 if level['type'] == 'fibonacci' else min_distance
-            if abs(level['price'] - existing['price']) < distance_threshold:
+            if (existing['type'] == level['type'] and 
+                abs(level['price'] - existing['price']) * 10000 < 0.1):  # 0.1 pip threshold
                 # Keep the one with higher confidence
                 if level['confidence'] > existing['confidence']:
                     clustered_levels.remove(existing)
                     clustered_levels.append(level)
                 too_close = True
                 break
-        
+        if not too_close:
+            clustered_levels.append(level)
+    
+    # For other levels, use normal clustering
+    for level in other_levels:
+        too_close = False
+        for existing in clustered_levels:
+            if level['type'] in ['fibonacci', 'volume']:
+                distance_threshold = 0.5  # 0.5 pips
+            else:  # pivots
+                distance_threshold = 1.0  # 1 pip
+                
+            if abs(level['price'] - existing['price']) * 10000 < distance_threshold:
+                if level['confidence'] > existing['confidence']:
+                    clustered_levels.remove(existing)
+                    clustered_levels.append(level)
+                too_close = True
+                break
         if not too_close:
             clustered_levels.append(level)
     
     return {
         'levels': clustered_levels,
         'support_resistance': sr_levels,
-        'pivots': pivots,
+        'pivots': pivots_standard,
+        'pivots_fibonacci': pivots_fibonacci,
+        'pivots_camarilla': pivots_camarilla,
         'volume_profile': vol_profile,
         'fibonacci': fib_levels
     }

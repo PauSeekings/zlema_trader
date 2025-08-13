@@ -2,7 +2,7 @@ import React from 'react';
 import Plot from 'react-plotly.js';
 import { Box, Typography } from '@mui/material';
 
-const TradingChart = ({ marketData, keyLevels, polynomialPredictions, overlaySettings, currentPrice }) => {
+const TradingChart = ({ marketData, keyLevels, polynomialPredictions, overlaySettings, currentPrice, strategyToggles }) => {
   if (!marketData || !marketData.all_candles) {
     return <Typography>Loading chart...</Typography>;
   }
@@ -33,8 +33,9 @@ const TradingChart = ({ marketData, keyLevels, polynomialPredictions, overlaySet
   const totalLength = baseLength + predictionLength;
   const xAxis = Array.from({ length: baseLength }, (_, i) => i);
 
-  // Plot candlesticks - if Zero Lag is active, only show first set, otherwise show all
-  const isZeroLag = Boolean(marketData.zl);
+  // Plot candlesticks based on strategy toggles
+  const isZeroLag = Boolean(marketData.zl) && (strategyToggles?.zero_lag === true);
+
   if (isZeroLag) {
     // Only plot the first candlestick set when Zero Lag is active
     const candle = all_candles[0];
@@ -48,29 +49,48 @@ const TradingChart = ({ marketData, keyLevels, polynomialPredictions, overlaySet
       opacity: 0.3, // Slightly faded to let ZL overlay stand out
       xaxis: 'x',
       yaxis: 'y',
-      layer: 'above'
+      layer: 'above',
+      showlegend: false
     });
   } else {
-    // Plot all candlesticks normally
-    all_candles.forEach((candle, index) => {
-      const opacity = index === 0 ? 0.5 : 0.1; // Main data more visible
-      data.push({
-        type: 'candlestick',
-        x: xAxis,
-        open: candle[0],
-        high: candle[2],
-        low: candle[3],
-        close: candle[1],
-        opacity: opacity,
-        xaxis: 'x',
-        yaxis: 'y',
-        layer: 'above' // Ensure candlesticks are above key levels
-      });
+    // Always plot basic candlesticks (first dataset only)
+    const candle = all_candles[0];
+    data.push({
+      type: 'candlestick',
+      x: xAxis,
+      open: candle[0],
+      high: candle[2],
+      low: candle[3],
+      close: candle[1],
+      opacity: 0.7,
+      xaxis: 'x',
+      yaxis: 'y',
+      layer: 'above',
+      showlegend: false
     });
+
+    // If Zlema1 is enabled, show additional ZLEMA candlesticks
+    if (strategyToggles?.zlema1 === true) {
+      all_candles.slice(1).forEach((candle, index) => {
+        data.push({
+          type: 'candlestick',
+          x: xAxis,
+          open: candle[0],
+          high: candle[2],
+          low: candle[3],
+          close: candle[1],
+          opacity: 0.1, // Additional ZLEMA candlesticks more transparent
+          xaxis: 'x',
+          yaxis: 'y',
+          layer: 'above',
+          showlegend: false
+        });
+      });
+    }
   }
 
-  // Add close price line with conditional coloring based on median (unless Zero Lag is active)
-  if (!isZeroLag && medians && all_candles[0][1]) {
+  // Add close price line with conditional coloring based on median (only for Zlema1)
+  if (strategyToggles?.zlema1 === true && !isZeroLag && medians && all_candles[0][1]) {
     const closePrices = all_candles[0][1];
     const greenSegments = [];
     const redSegments = [];
@@ -94,7 +114,8 @@ const TradingChart = ({ marketData, keyLevels, polynomialPredictions, overlaySet
       opacity: 0.5,
       xaxis: 'x',
       yaxis: 'y',
-      layer: 'above' // Ensure this is above key levels
+      layer: 'above', // Ensure this is above key levels
+      showlegend: false
     });
 
     // Add red segments (below median)
@@ -106,12 +127,72 @@ const TradingChart = ({ marketData, keyLevels, polynomialPredictions, overlaySet
       opacity: 0.5,
       xaxis: 'x',
       yaxis: 'y',
-      layer: 'above' // Ensure this is above key levels
+      layer: 'above', // Ensure this is above key levels
+      showlegend: false
     });
+
+    // Add arrows for ZLEMA color changes
+    const arrowUpX = [], arrowUpY = [];
+    const arrowDownX = [], arrowDownY = [];
+
+    for (let i = 1; i < closePrices.length; i++) {
+      const prevIsGreen = closePrices[i - 1] > medians[i - 1];
+      const currIsGreen = closePrices[i] > medians[i];
+
+      // Red to Green transition (bullish) - green up arrow at candle low (buy signal)
+      if (!prevIsGreen && currIsGreen) {
+        arrowUpX.push(i);
+        arrowUpY.push(all_candles[0][3][i]); // Use candle low for buy
+      }
+
+      // Green to Red transition (bearish) - red down arrow at candle high (sell signal)
+      if (prevIsGreen && !currIsGreen) {
+        arrowDownX.push(i);
+        arrowDownY.push(all_candles[0][2][i]); // Use candle high for sell
+      }
+    }
+
+    // Add green up arrows (bullish signals)
+    if (arrowUpX.length > 0) {
+      data.push({
+        type: 'scatter',
+        mode: 'markers',
+        x: arrowUpX,
+        y: arrowUpY,
+        marker: {
+          symbol: 'triangle-up',
+          size: 30,
+          color: 'green'
+        },
+        xaxis: 'x',
+        yaxis: 'y',
+        layer: 'above',
+        showlegend: false
+      });
+    }
+
+    // Add red down arrows (bearish signals)
+    if (arrowDownX.length > 0) {
+      data.push({
+        type: 'scatter',
+        mode: 'markers',
+        x: arrowDownX,
+        y: arrowDownY,
+        marker: {
+          symbol: 'triangle-down',
+          size: 30,
+          color: 'red'
+        },
+        xaxis: 'x',
+        yaxis: 'y',
+        layer: 'above',
+        showlegend: false
+      });
+    }
   }
 
-  // Add median line (unless Zero Lag is active)
-  if (!isZeroLag && medians) {
+  // Add median line (only for Zlema1)
+  if (strategyToggles?.zlema1 === true && !isZeroLag && medians) {
     data.push({
       type: 'scatter',
       mode: 'lines',
@@ -120,7 +201,8 @@ const TradingChart = ({ marketData, keyLevels, polynomialPredictions, overlaySet
       opacity: 0.2,
       xaxis: 'x',
       yaxis: 'y',
-      layer: 'above' // Ensure this is above key levels
+      layer: 'above', // Ensure this is above key levels
+      showlegend: false
     });
   }
 
@@ -282,6 +364,8 @@ const TradingChart = ({ marketData, keyLevels, polynomialPredictions, overlaySet
     });
   }
 
+
+
   // Helper function to get color based on level type
   const getLevelColor = (type) => {
     switch (type) {
@@ -297,21 +381,28 @@ const TradingChart = ({ marketData, keyLevels, polynomialPredictions, overlaySet
   // Add key levels as horizontal lines (behind main plot)
   if (keyLevels && keyLevels.key_levels && keyLevels.key_levels.levels && Array.isArray(keyLevels.key_levels.levels)) {
     const levels = keyLevels.key_levels.levels;
+    console.log('Processing key levels:', levels);
 
     levels.forEach((level, index) => {
       // Check if level has required properties
       if (!level || typeof level.type !== 'string' || typeof level.price !== 'number') {
+        console.log('Skipping invalid level:', level);
         return;
       }
 
       // Check if this level type should be displayed
-      if (!defaultOverlaySettings[level.type]) return;
+      if (!defaultOverlaySettings[level.type]) {
+        console.log('Skipping disabled level type:', level.type);
+        return;
+      }
 
       const color = getLevelColor(level.type);
       const dash = level.type === 'fibonacci' ? 'dot' : 'solid';
 
       // Ensure xAxis has valid length
       if (xAxis && xAxis.length > 0) {
+        console.log(`Adding ${level.type} level at price ${level.price} with color ${color}`);
+
         // Add to key levels data array (plotted first, behind everything)
         keyLevelsData.push({
           type: 'scatter',
@@ -320,41 +411,196 @@ const TradingChart = ({ marketData, keyLevels, polynomialPredictions, overlaySet
           y: [level.price, level.price],
           line: {
             color: color,
-            width: 2,
+            width: 3, // Increased width for better visibility
             dash: dash
           },
-          opacity: 0.5, // 50% opacity
+          opacity: 0.3, // Decreased opacity for subtle background appearance
           xaxis: 'x',
           yaxis: 'y',
           name: `${level.type} (${level.price.toFixed(4)})`,
           showlegend: false,
-          layer: 'below' // Ensure this is plotted behind everything
+          layer: 'below', // Ensure this is plotted behind everything
+          zorder: -10 // Explicit z-index to put behind other elements
         });
       }
     });
+  } else {
+    console.log('Key levels data missing or invalid:', keyLevels);
+  }
+
+  // Add additional levels from other sources (pivots, fibonacci, etc.)
+  if (keyLevels && keyLevels.key_levels && xAxis && xAxis.length > 0) {
+    const keyLevelsObj = keyLevels.key_levels;
+
+    // Add pivot levels if enabled (Standard pivots)
+    if (defaultOverlaySettings.pivots && keyLevelsObj.pivots) {
+      const pivots = keyLevelsObj.pivots;
+      const pivotKeys = ['pivot', 'r1', 'r2', 'r3', 's1', 's2', 's3'];
+
+      pivotKeys.forEach(key => {
+        if (pivots[key] && typeof pivots[key] === 'number') {
+          console.log(`Adding standard pivot ${key} at price ${pivots[key]}`);
+          keyLevelsData.push({
+            type: 'scatter',
+            mode: 'lines',
+            x: [0, xAxis.length - 1],
+            y: [pivots[key], pivots[key]],
+            line: {
+              color: '#ff00ff', // Magenta for standard pivots
+              width: 2, // Increased width
+              dash: 'dash'
+            },
+            opacity: 0.4, // Decreased opacity for background
+            xaxis: 'x',
+            yaxis: 'y',
+            name: `${key.toUpperCase()} (${pivots[key].toFixed(4)})`,
+            showlegend: false,
+            layer: 'below',
+            zorder: -5 // Behind main elements but in front of S/R
+          });
+        }
+      });
+    }
+
+    // Add Fibonacci pivot levels if enabled
+    if (defaultOverlaySettings.pivots && keyLevelsObj.pivots_fibonacci) {
+      const fibPivots = keyLevelsObj.pivots_fibonacci;
+      const fibPivotKeys = ['pivot', 'r1', 'r2', 'r3', 's1', 's2', 's3'];
+
+      fibPivotKeys.forEach(key => {
+        if (fibPivots[key] && typeof fibPivots[key] === 'number') {
+          console.log(`Adding fibonacci pivot ${key} at price ${fibPivots[key]}`);
+          keyLevelsData.push({
+            type: 'scatter',
+            mode: 'lines',
+            x: [0, xAxis.length - 1],
+            y: [fibPivots[key], fibPivots[key]],
+            line: {
+              color: '#ff8000', // Orange for fibonacci pivots
+              width: 2, // Increased width
+              dash: 'dot'
+            },
+            opacity: 0.3, // Decreased opacity for background
+            xaxis: 'x',
+            yaxis: 'y',
+            name: `FIB-${key.toUpperCase()} (${fibPivots[key].toFixed(4)})`,
+            showlegend: false,
+            layer: 'below',
+            zorder: -6 // Behind main elements
+          });
+        }
+      });
+    }
+
+    // Add Camarilla pivot levels if enabled
+    if (defaultOverlaySettings.pivots && keyLevelsObj.pivots_camarilla) {
+      const camPivots = keyLevelsObj.pivots_camarilla;
+      const camKeys = ['pivot', 'h1', 'h2', 'h3', 'h4', 'h5', 'l1', 'l2', 'l3', 'l4', 'l5'];
+
+      camKeys.forEach(key => {
+        if (camPivots[key] && typeof camPivots[key] === 'number') {
+          console.log(`Adding camarilla pivot ${key} at price ${camPivots[key]}`);
+          keyLevelsData.push({
+            type: 'scatter',
+            mode: 'lines',
+            x: [0, xAxis.length - 1],
+            y: [camPivots[key], camPivots[key]],
+            line: {
+              color: '#8000ff', // Purple for camarilla pivots
+              width: 2, // Increased width
+              dash: 'dashdot'
+            },
+            opacity: 0.25, // Decreased opacity for background
+            xaxis: 'x',
+            yaxis: 'y',
+            name: `CAM-${key.toUpperCase()} (${camPivots[key].toFixed(4)})`,
+            showlegend: false,
+            layer: 'below',
+            zorder: -7 // Behind main elements
+          });
+        }
+      });
+    }
+
+    // Add fibonacci levels if enabled
+    if (defaultOverlaySettings.fibonacci && keyLevelsObj.fibonacci) {
+      const fib = keyLevelsObj.fibonacci;
+      const fibKeys = ['fib_0.236', 'fib_0.382', 'fib_0.5', 'fib_0.618', 'fib_0.786'];
+
+      fibKeys.forEach(key => {
+        if (fib[key] && typeof fib[key] === 'number') {
+          console.log(`Adding fibonacci ${key} at price ${fib[key]}`);
+          keyLevelsData.push({
+            type: 'scatter',
+            mode: 'lines',
+            x: [0, xAxis.length - 1],
+            y: [fib[key], fib[key]],
+            line: {
+              color: '#00ffff', // Cyan for fibonacci
+              width: 2, // Increased width
+              dash: 'dot'
+            },
+            opacity: 0.3, // Decreased opacity for background
+            xaxis: 'x',
+            yaxis: 'y',
+            name: `${key} (${fib[key].toFixed(4)})`,
+            showlegend: false,
+            layer: 'below',
+            zorder: -8 // Behind main elements
+          });
+        }
+      });
+    }
+
+    // Add volume profile levels if enabled
+    if (defaultOverlaySettings.volume && keyLevelsObj.volume_profile && keyLevelsObj.volume_profile.high_volume_levels) {
+      const volumeLevels = keyLevelsObj.volume_profile.high_volume_levels;
+
+      volumeLevels.slice(0, 3).forEach((level, index) => { // Only show top 3
+        if (typeof level === 'number') {
+          console.log(`Adding volume level at price ${level}`);
+          keyLevelsData.push({
+            type: 'scatter',
+            mode: 'lines',
+            x: [0, xAxis.length - 1],
+            y: [level, level],
+            line: {
+              color: '#ffff00', // Yellow for volume
+              width: 2, // Increased width
+              dash: 'solid'
+            },
+            opacity: 0.3, // Decreased opacity for background
+            xaxis: 'x',
+            yaxis: 'y',
+            name: `Volume Level ${index + 1} (${level.toFixed(4)})`,
+            showlegend: false,
+            layer: 'below',
+            zorder: -9 // Behind main elements
+          });
+        }
+      });
+    }
   }
 
   // Add current price horizontal line if there are open trades
-  if (currentPrice && currentPrice.price && currentPrice.mean && xAxis && xAxis.length > 0) {
-    // Use the same scaling as the backend: (price - mean) * 10000
-    const scaledCurrentPrice = (currentPrice.price - currentPrice.mean) * 10000;
-
+  if (currentPrice && currentPrice.price && xAxis && xAxis.length > 0) {
     keyLevelsData.push({
       type: 'scatter',
       mode: 'lines',
       x: [0, xAxis.length - 1],
-      y: [scaledCurrentPrice, scaledCurrentPrice],
+      y: [currentPrice.price, currentPrice.price],
       line: {
         color: 'white',
-        width: 2,
+        width: 3, // Increased width
         dash: 'dash'
       },
-      opacity: 0.5, // 50% opacity
+      opacity: 0.5, // Moderate opacity for current price visibility
       xaxis: 'x',
       yaxis: 'y',
       name: 'Current Price',
       showlegend: false,
-      layer: 'below' // Ensure this is plotted behind everything
+      layer: 'below', // Ensure this is plotted behind everything
+      zorder: -3 // Higher priority than other levels but behind main chart
     });
   }
 
@@ -369,9 +615,9 @@ const TradingChart = ({ marketData, keyLevels, polynomialPredictions, overlaySet
     dragmode: false,
     modebar: { remove: true },
     grid: {
-      rows: 4,
+      rows: 3,
       columns: 1,
-      rowheight: [0.66, 0.11, 0.11, 0.12],
+      rowheight: [0.78, 0.11, 0.11],
       pattern: 'independent'
     },
     xaxis: {
@@ -382,17 +628,42 @@ const TradingChart = ({ marketData, keyLevels, polynomialPredictions, overlaySet
       showticklabels: false,
       tickfont: { color: '#888888', size: 10 },
       fixedrange: true,
-      range: [0, totalLength - 1]
+      range: [0, totalLength + 4]
     },
     yaxis: {
       showgrid: true,
       gridcolor: 'rgba(255, 255, 255, 0.05)',
       zeroline: false,
       showticklabels: true,
-      tickfont: { color: '#888888', size: 10 },
-      title: { text: 'Price (Pips)', font: { color: '#888888', size: 12 } },
+      tickfont: { color: '#00ff88', size: 10 },
+      title: { text: 'Pips', font: { color: '#00ff88', size: 12 } },
       fixedrange: true,
-      domain: [0.34, 1]
+      domain: [0.22, 1],
+      tickmode: 'array',
+      tickvals: all_candles && all_candles[0] && all_candles[0][1] ?
+        (() => {
+          const closePrices = all_candles[0][1];
+          const currentPrice = closePrices[closePrices.length - 1];
+          const minPrice = Math.min(...closePrices);
+          const maxPrice = Math.max(...closePrices);
+          const numTicks = 8;
+          const tickStep = (maxPrice - minPrice) / (numTicks - 1);
+          return Array.from({ length: numTicks }, (_, i) => minPrice + (i * tickStep));
+        })() : [],
+      ticktext: all_candles && all_candles[0] && all_candles[0][1] ?
+        (() => {
+          const closePrices = all_candles[0][1];
+          const currentPrice = closePrices[closePrices.length - 1];
+          const minPrice = Math.min(...closePrices);
+          const maxPrice = Math.max(...closePrices);
+          const numTicks = 8;
+          const tickStep = (maxPrice - minPrice) / (numTicks - 1);
+          return Array.from({ length: numTicks }, (_, i) => {
+            const price = minPrice + (i * tickStep);
+            const pipValue = Math.round((price - currentPrice) * 10000);
+            return `${pipValue > 0 ? '+' : ''}${pipValue}p`;
+          });
+        })() : []
     },
     xaxis2: {
       showgrid: true,
@@ -401,7 +672,7 @@ const TradingChart = ({ marketData, keyLevels, polynomialPredictions, overlaySet
       showticklabels: false,
       fixedrange: true,
       domain: [0, 1],
-      range: [0, totalLength - 1]
+      range: [0, totalLength + 4]
     },
     yaxis2: {
       showgrid: true,
@@ -409,31 +680,11 @@ const TradingChart = ({ marketData, keyLevels, polynomialPredictions, overlaySet
       zeroline: false,
       showticklabels: true,
       tickfont: { color: '#888888', size: 8 },
-      title: { text: 'Efficiency', font: { color: '#888888', size: 10 } },
-      fixedrange: true,
-      domain: [0.23, 0.33],
-      range: [-1.0, 1.0]
-    },
-    xaxis3: {
-      showgrid: true,
-      gridcolor: 'rgba(255, 255, 255, 0.05)',
-      zeroline: false,
-      showticklabels: false,
-      fixedrange: true,
-      domain: [0, 1],
-      range: [0, totalLength - 1]
-    },
-    yaxis3: {
-      showgrid: true,
-      gridcolor: 'rgba(255, 255, 255, 0.05)',
-      zeroline: false,
-      showticklabels: true,
-      tickfont: { color: '#888888', size: 8 },
       title: { text: 'RSI', font: { color: '#888888', size: 10 } },
       fixedrange: true,
-      domain: [0.12, 0.22]
+      domain: [0.11, 0.21]
     },
-    xaxis4: {
+    xaxis3: {
       showgrid: true,
       gridcolor: 'rgba(255, 255, 255, 0.05)',
       zeroline: false,
@@ -442,9 +693,9 @@ const TradingChart = ({ marketData, keyLevels, polynomialPredictions, overlaySet
       title: { text: 'Time', font: { color: '#888888', size: 10 } },
       fixedrange: true,
       domain: [0, 1],
-      range: [0, totalLength - 1]
+      range: [0, totalLength + 4]
     },
-    yaxis4: {
+    yaxis3: {
       showgrid: true,
       gridcolor: 'rgba(255, 255, 255, 0.05)',
       zeroline: false,
@@ -452,87 +703,13 @@ const TradingChart = ({ marketData, keyLevels, polynomialPredictions, overlaySet
       tickfont: { color: '#888888', size: 8 },
       title: { text: 'Std Dev', font: { color: '#888888', size: 10 } },
       fixedrange: true,
-      domain: [0, 0.11]
+      domain: [0, 0.10]
     }
   };
 
-  // Add efficiency subplot (row 2)
-  console.log('Efficiency data:', eff_data);
-  if (eff_data && eff_data.length > 0) {
-    // Plot individual efficiency lines in white with low opacity
-    eff_data.forEach((eff_values, i) => {
-      subplotData.push({
-        type: 'scatter',
-        mode: 'lines',
-        x: xAxis,
-        y: eff_values,
-        line: { color: 'white', width: 1 },
-        opacity: 0.2,
-        xaxis: 'x2',
-        yaxis: 'y2'
-      });
-    });
 
-    // Calculate and plot average efficiency with conditional coloring
-    const effLength = eff_data[0].length;
-    const averageEff = [];
 
-    for (let i = 0; i < effLength; i++) {
-      const sum = eff_data.reduce((acc, eff_values) => acc + eff_values[i], 0);
-      const avg = sum / eff_data.length;
-      averageEff.push(avg);
-    }
-
-    // Split average efficiency into green and red segments
-    const greenSegments = [];
-    const redSegments = [];
-
-    for (let i = 0; i < averageEff.length; i++) {
-      if (averageEff[i] > 0) {
-        greenSegments.push(averageEff[i]);
-        redSegments.push(null);
-      } else {
-        greenSegments.push(null);
-        redSegments.push(averageEff[i]);
-      }
-    }
-
-    // Add green segments
-    subplotData.push({
-      type: 'scatter',
-      mode: 'lines',
-      x: xAxis,
-      y: greenSegments,
-      line: {
-        color: 'green',
-        width: 3
-      },
-      opacity: 0.8,
-      xaxis: 'x2',
-      yaxis: 'y2',
-      name: 'Average Efficiency (Positive)',
-      showlegend: false
-    });
-
-    // Add red segments
-    subplotData.push({
-      type: 'scatter',
-      mode: 'lines',
-      x: xAxis,
-      y: redSegments,
-      line: {
-        color: 'red',
-        width: 3
-      },
-      opacity: 0.8,
-      xaxis: 'x2',
-      yaxis: 'y2',
-      name: 'Average Efficiency (Negative)',
-      showlegend: false
-    });
-  }
-
-  // Add RSI subplot (row 3)
+  // Add RSI subplot (row 2)
   if (rsi_data && rsi_data.length > 0) {
     // Plot individual RSI lines in white with low opacity
     rsi_data.forEach((rsi_values, i) => {
@@ -543,8 +720,8 @@ const TradingChart = ({ marketData, keyLevels, polynomialPredictions, overlaySet
         y: rsi_values,
         line: { color: 'white', width: 1 },
         opacity: 0.2,
-        xaxis: 'x3',
-        yaxis: 'y3'
+        xaxis: 'x2',
+        yaxis: 'y2'
       });
     });
 
@@ -583,8 +760,8 @@ const TradingChart = ({ marketData, keyLevels, polynomialPredictions, overlaySet
         width: 3
       },
       opacity: 0.8,
-      xaxis: 'x3',
-      yaxis: 'y3',
+      xaxis: 'x2',
+      yaxis: 'y2',
       name: 'Average RSI (Bullish)',
       showlegend: false
     });
@@ -600,25 +777,34 @@ const TradingChart = ({ marketData, keyLevels, polynomialPredictions, overlaySet
         width: 3
       },
       opacity: 0.8,
-      xaxis: 'x3',
-      yaxis: 'y3',
+      xaxis: 'x2',
+      yaxis: 'y2',
       name: 'Average RSI (Bearish)',
       showlegend: false
     });
   }
 
-  // Add standard deviation subplot (row 4)
+  // Add standard deviation subplot (row 3) with conditional coloring
   if (std_devs && std_devs.length > 0) {
+    // Create color array based on increase/decrease from previous bar
+    const barColors = std_devs.map((value, index) => {
+      if (index === 0) {
+        return 'white'; // First bar is white (no comparison)
+      }
+      return value > std_devs[index - 1] ? 'green' : 'red';
+    });
+
     subplotData.push({
       type: 'bar',
       x: xAxis,
       y: std_devs,
       marker: {
-        color: 'white',
-        opacity: 0.2
+        color: barColors,
+        opacity: 0.6 // Increased opacity to better see the colors
       },
-      xaxis: 'x4',
-      yaxis: 'y4'
+      xaxis: 'x3',
+      yaxis: 'y3',
+      showlegend: false
     });
   }
 

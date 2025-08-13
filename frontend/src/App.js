@@ -35,10 +35,19 @@ const DEFAULT_POLYNOMIAL_PARAMS = {
   degree: 2
 };
 
+// Default strategy toggles
+const DEFAULT_STRATEGY_TOGGLES = {
+  zlema1: true,      // Original ZLEMA (shown by default)
+  zlema2: false,     // ZLEMA signals overlaid on main chart
+  zero_lag: false,   // Zero lag strategy
+  polynomial: false  // Polynomial predictions
+};
+
 function App() {
   const [tradingParams, setTradingParams] = useState(DEFAULT_TRADING_PARAMS);
   const [overlaySettings, setOverlaySettings] = useState(DEFAULT_OVERLAY_SETTINGS);
   const [polynomialParams, setPolynomialParams] = useState(DEFAULT_POLYNOMIAL_PARAMS);
+  const [strategyToggles, setStrategyToggles] = useState(DEFAULT_STRATEGY_TOGGLES);
 
   const { placeTrade } = useTrading();
 
@@ -84,6 +93,8 @@ function App() {
                     setOverlaySettings={setOverlaySettings}
                     polynomialParams={polynomialParams}
                     setPolynomialParams={setPolynomialParams}
+                    strategyToggles={strategyToggles}
+                    setStrategyToggles={setStrategyToggles}
                   />
                 }
               />

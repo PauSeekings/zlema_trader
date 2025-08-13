@@ -16,8 +16,7 @@ class DataService:
         data = get_price(pair, timeframe, n_candles, self.exchange)
         display_data = data[:, -periods:]
         
-        # Scale data to pips
-        display_data[:4] = (display_data[:4] - np.mean(display_data[:4])) * Config.PIP_MULTIPLIER
+        # Keep raw price data (no scaling)
         
         # Calculate indicators
         ha = calc_HA(display_data)
@@ -137,18 +136,17 @@ class DataService:
     
     def get_key_levels(self, pair: str, timeframe: str, periods: int, window: int, threshold: float) -> Dict[str, Any]:
         """Get key levels for trading analysis"""
-        n_candles = periods + 50
+        # Use more data for better level detection
+        n_candles = max(periods + 100, 200)  # Ensure we have enough data
         data = get_price(pair, timeframe, n_candles, self.exchange)
-        display_data = data[:, -periods:]
+        display_data = data[:, -periods:] if periods < n_candles else data
         
-        # Extract and scale prices
+        # Extract prices (no scaling)
         prices = display_data[:4]
-        volume = display_data[4] if len(display_data) > 4 else np.ones(periods)
-        prices_scaled = (prices - np.mean(prices)) * Config.PIP_MULTIPLIER
+        volume = display_data[4] if len(display_data) > 4 else np.ones(display_data.shape[1])
         
-        # Calculate key levels
-        threshold_pips = threshold * Config.PIP_MULTIPLIER
-        key_levels = key_levels_composite(prices_scaled, volume, window, threshold_pips)
+        # Calculate key levels with optimized parameters
+        key_levels = key_levels_composite(prices, volume, max(5, min(window, periods//10)), threshold)
         
         return {
             "key_levels": self._convert_numpy(key_levels),
@@ -160,10 +158,12 @@ class DataService:
             "timestamp": datetime.now().isoformat()
         }
     
+
+    
     def calculate_indicators_for_backtest(self, data: np.ndarray, window_lengths: List[int]) -> Tuple[List[np.ndarray], List[np.ndarray]]:
         """Calculate indicators for backtesting"""
         data_copy = data.copy()
-        data_copy[:4] = (data_copy[:4] - np.mean(data_copy[:4])) * Config.PIP_MULTIPLIER
+        # Keep raw price data (no scaling)
         ha = calc_HA(data_copy)
         ha_zlema_list = [zlema_ochl(ha, window) for window in window_lengths]
         zlema_list = [zlema_ochl(data_copy, window) for window in window_lengths]

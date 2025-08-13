@@ -18,22 +18,15 @@ import {
 } from '@mui/material';
 import { Settings } from '@mui/icons-material';
 import axios from 'axios';
+import MarketStatus from './MarketStatus';
 
 const Navigation = ({ tradingParams, setTradingParams, onTrade, overlaySettings, setOverlaySettings, polynomialParams, setPolynomialParams }) => {
   const [accountMode, setAccountMode] = useState('test');
-  const [currentTime, setCurrentTime] = useState(new Date());
   const [settingsAnchor, setSettingsAnchor] = useState(null);
 
   useEffect(() => {
     // Fetch current account mode on component mount
     fetchAccountMode();
-
-    // Update time every second
-    const timeInterval = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 1000);
-
-    return () => clearInterval(timeInterval);
   }, []);
 
   const fetchAccountMode = async () => {
@@ -73,14 +66,7 @@ const Navigation = ({ tradingParams, setTradingParams, onTrade, overlaySettings,
     }));
   };
 
-  const formatTime = (date) => {
-    return date.toLocaleTimeString('en-US', {
-      hour12: false,
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit'
-    });
-  };
+
 
   return (
     <AppBar position="static" sx={{ backgroundColor: '#1a1a1a' }}>
@@ -91,16 +77,8 @@ const Navigation = ({ tradingParams, setTradingParams, onTrade, overlaySettings,
 
         <div style={{ flexGrow: 1 }} />
 
-        {/* Current Time - Centered */}
-        <Typography variant="body2" sx={{
-          color: '#ffffff',
-          minWidth: '100px',
-          textAlign: 'center',
-          fontSize: '0.85rem',
-          fontWeight: 'bold'
-        }}>
-          {formatTime(currentTime)}
-        </Typography>
+        {/* Market Status with Time */}
+        <MarketStatus />
 
         <div style={{ flexGrow: 1 }} />
 

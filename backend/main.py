@@ -3,6 +3,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import uvicorn
 import numpy as np
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+import os
+backend_dir = os.path.dirname(os.path.abspath(__file__))
+load_dotenv(os.path.join(backend_dir, '.env'))
 
 from config import Config
 from models import TradingParams, TradeRequest, BacktestParams, TradeResponse, StatusResponse
@@ -10,6 +16,7 @@ from services.data_service import DataService
 from services.trading_service import TradingService
 from services.news_service import NewsService
 from services.backtest_service import BacktestService
+from services.market_status_service import MarketStatusService
 from libs.tradelib import connect, get_price
 
 # Initialize FastAPI app
@@ -31,6 +38,7 @@ data_service = None
 trading_service = None
 news_service = NewsService()
 backtest_service = None
+market_status_service = MarketStatusService()
 
 @app.on_event("startup")
 async def startup_event():
@@ -186,6 +194,26 @@ async def close_all_trades():
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.post("/api/trade/{trade_id}/update-tp")
+async def update_trade_tp(trade_id: str, take_profit: float):
+    """Update take profit for a specific trade"""
+    try:
+        return trading_service.update_trade_tp(trade_id, take_profit)
+    except Exception as e:
+        if "Trade not found" in str(e):
+            raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.post("/api/trade/{trade_id}/update-sl")
+async def update_trade_sl(trade_id: str, stop_loss: float):
+    """Update stop loss for a specific trade"""
+    try:
+        return trading_service.update_trade_sl(trade_id, stop_loss)
+    except Exception as e:
+        if "Trade not found" in str(e):
+            raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e))
+
 @app.post("/api/backtest")
 async def run_backtest(params: BacktestParams):
     """Run a backtest with specified parameters"""
@@ -210,6 +238,25 @@ async def get_news_feed(currency_pair: str = Config.DEFAULT_PAIR, enable_ai_anal
         return news_service.get_news_feed(currency_pair, enable_ai_analysis)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch news: {str(e)}")
+
+@app.get("/api/market-status")
+async def get_market_status():
+    """Get current market status from Polygon.io"""
+    try:
+        return market_status_service.get_market_status()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch market status: {str(e)}")
+
+@app.get("/api/market-events")
+async def get_market_events():
+    """Get upcoming market opens/closes"""
+    try:
+        return {
+            "events": market_status_service.get_upcoming_market_events(),
+            "timestamp": market_status_service.get_market_status()["timestamp"]
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch market events: {str(e)}")
 
 if __name__ == "__main__":
     uvicorn.run(app, host=Config.HOST, port=Config.PORT)

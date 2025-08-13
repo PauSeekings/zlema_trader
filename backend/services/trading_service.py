@@ -58,7 +58,9 @@ class TradingService:
             'size': size if direction == "BUY" else -size,
             'entry_price': current_price,
             'pair': pair,
-            'practice_mode': True
+            'practice_mode': True,
+            'take_profit': 10,  # Default TP value
+            'stop_loss': 15     # Default SL value
         })
         
         return {
@@ -79,7 +81,9 @@ class TradingService:
                 'direction': direction,
                 'size': size,
                 'entry_price': price,
-                'pair': pair
+                'pair': pair,
+                'take_profit': 10,  # Default TP value
+                'stop_loss': 15     # Default SL value
             })
         
         return {
@@ -90,11 +94,30 @@ class TradingService:
         }
     
     def get_trades_with_pl(self) -> List[Dict[str, Any]]:
-        """Get all open trades with current P&L"""
+        """Get all open trades with current P&L and check for TP/SL triggers"""
         trades_with_pl = []
+        trades_to_close = []
+        
         for trade in self.open_trades:
             pl = self._calculate_trade_pl(trade) if not trade.get('practice_mode', False) else 0
             trades_with_pl.append({**trade, "current_pl": pl})
+            
+            # Check if TP should trigger (profit >= take_profit)
+            if pl >= trade.get('take_profit', 10):
+                trades_to_close.append((trade['trade_id'], 'TP'))
+            
+            # Check if SL should trigger (loss >= stop_loss, i.e., P&L <= -stop_loss)
+            elif pl <= -trade.get('stop_loss', 15):
+                trades_to_close.append((trade['trade_id'], 'SL'))
+        
+        # Auto-close trades that hit TP or SL
+        for trade_id, reason in trades_to_close:
+            try:
+                self.close_trade(trade_id)
+                print(f"Auto-closed trade {trade_id} - {reason} reached")
+            except Exception as e:
+                print(f"Error auto-closing trade {trade_id}: {e}")
+        
         return trades_with_pl
     
     def _calculate_trade_pl(self, trade: Dict[str, Any]) -> float:
@@ -143,3 +166,29 @@ class TradingService:
     def set_account_mode(self, mode: str):
         """Set the account mode"""
         self.account_mode = mode
+    
+    def update_trade_tp(self, trade_id: str, take_profit: float) -> Dict[str, Any]:
+        """Update take profit for a specific trade"""
+        trade = next((t for t in self.open_trades if t['trade_id'] == trade_id), None)
+        if not trade:
+            raise ValueError("Trade not found")
+        
+        # Validate TP range
+        if not (3 <= take_profit <= 20):
+            raise ValueError("Take profit must be between 3 and 20 pips")
+        
+        trade['take_profit'] = take_profit
+        return {"status": "success", "trade_id": trade_id, "take_profit": take_profit}
+    
+    def update_trade_sl(self, trade_id: str, stop_loss: float) -> Dict[str, Any]:
+        """Update stop loss for a specific trade"""
+        trade = next((t for t in self.open_trades if t['trade_id'] == trade_id), None)
+        if not trade:
+            raise ValueError("Trade not found")
+        
+        # Validate SL range
+        if not (5 <= stop_loss <= 50):
+            raise ValueError("Stop loss must be between 5 and 50 pips")
+        
+        trade['stop_loss'] = stop_loss
+        return {"status": "success", "trade_id": trade_id, "stop_loss": stop_loss}

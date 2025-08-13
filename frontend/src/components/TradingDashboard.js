@@ -11,14 +11,15 @@ import {
 import axios from 'axios';
 import TradingChart from './TradingChart';
 import TradeControls from './TradeControls';
-import ZeroLagControls from './ZeroLagControls';
+import StrategyTabs from './StrategyTabs';
 import AccountStatus from './AccountStatus';
 import CollapsibleSidebar from './CollapsibleSidebar';
 
-const TradingDashboard = ({ tradingParams, setTradingParams, overlaySettings, setOverlaySettings, polynomialParams, setPolynomialParams }) => {
+const TradingDashboard = ({ tradingParams, setTradingParams, overlaySettings, setOverlaySettings, polynomialParams, setPolynomialParams, strategyToggles, setStrategyToggles }) => {
   const [marketData, setMarketData] = useState(null);
   const [keyLevels, setKeyLevels] = useState(null);
   const [polynomialPredictions, setPolynomialPredictions] = useState(null);
+
 
   const [trades, setTrades] = useState([]);
   const [accountStatus, setAccountStatus] = useState({});
@@ -26,6 +27,8 @@ const TradingDashboard = ({ tradingParams, setTradingParams, overlaySettings, se
   const [loading, setLoading] = useState(false);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [error, setError] = useState(null);
+
+
 
   const fetchMarketData = async (isAutoRefresh = false) => {
     try {
@@ -137,6 +140,8 @@ const TradingDashboard = ({ tradingParams, setTradingParams, overlaySettings, se
     }
   };
 
+
+
   useEffect(() => {
     fetchMarketData();
     fetchKeyLevels();
@@ -151,6 +156,7 @@ const TradingDashboard = ({ tradingParams, setTradingParams, overlaySettings, se
       fetchTrades();
       fetchAccountStatus();
       fetchCurrentPrice();
+
     }, 5000);
 
     // Listen for trade events
@@ -219,23 +225,30 @@ const TradingDashboard = ({ tradingParams, setTradingParams, overlaySettings, se
       <Grid container spacing={0.5}>
         {/* Main Chart */}
         <Grid item xs={12} md={9}>
-          <Paper sx={{ p: 0, height: '100%' }}>
-            {isInitialLoad && loading ? (
-              <Box display="flex" justifyContent="center" alignItems="center" height="100%">
-                <CircularProgress />
-              </Box>
-            ) : marketData ? (
-              <TradingChart
-                marketData={marketData}
-                keyLevels={keyLevels}
-                polynomialPredictions={polynomialPredictions}
-                overlaySettings={overlaySettings}
-                currentPrice={currentPrice}
-              />
-            ) : (
-              <Typography>No market data available</Typography>
-            )}
-          </Paper>
+          <Grid container spacing={0.5} sx={{ height: '100%' }}>
+            {/* Trading Chart - Full Height */}
+            <Grid item xs={12} sx={{ height: '100%' }}>
+              <Paper sx={{ p: 0, height: '100%' }}>
+                {isInitialLoad && loading ? (
+                  <Box display="flex" justifyContent="center" alignItems="center" height="100%">
+                    <CircularProgress />
+                  </Box>
+                ) : marketData ? (
+                  <TradingChart
+                    marketData={marketData}
+                    keyLevels={keyLevels}
+                    polynomialPredictions={strategyToggles.polynomial ? polynomialPredictions : null}
+                    overlaySettings={overlaySettings}
+                    currentPrice={currentPrice}
+                    strategyToggles={strategyToggles}
+
+                  />
+                ) : (
+                  <Typography>No market data available</Typography>
+                )}
+              </Paper>
+            </Grid>
+          </Grid>
         </Grid>
 
         {/* Right Column - Trade Controls, Open Trades, Account Status */}
@@ -263,21 +276,95 @@ const TradingDashboard = ({ tradingParams, setTradingParams, overlaySettings, se
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                   {trades.map((trade) => (
                     <Box key={trade.trade_id} sx={{ p: 0.5, border: '1px solid #333', borderRadius: 0.5 }}>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <Typography variant="body2" sx={{ fontSize: '0.7rem' }}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1 }}>
+                        <Typography variant="body2" sx={{ fontSize: '0.7rem', minWidth: 'fit-content' }}>
                           {trade.pair} {trade.direction}
                         </Typography>
-                        <Typography variant="body2" color={trade.current_pl >= 0 ? 'success.main' : 'error.main'} sx={{ fontSize: '0.7rem' }}>
+                        <Typography variant="body2" color={trade.current_pl >= 0 ? 'success.main' : 'error.main'} sx={{ fontSize: '0.7rem', minWidth: 'fit-content' }}>
                           P&L: {trade.current_pl} pips
                         </Typography>
-                        <Button
-                          size="small"
-                          variant="outlined"
-                          onClick={() => handleCloseTrade(trade.trade_id)}
-                          sx={{ fontSize: '0.6rem', padding: '2px 6px', minHeight: '24px' }}
-                        >
-                          Close
-                        </Button>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                          <input
+                            type="number"
+                            min="3"
+                            max="20"
+                            step="1"
+                            defaultValue={trade.take_profit || 10}
+                            style={{
+                              width: '50px',
+                              height: '28px',
+                              fontSize: '0.7rem',
+                              textAlign: 'center',
+                              backgroundColor: '#333',
+                              color: '#fff',
+                              border: '1px solid #555',
+                              borderRadius: '4px',
+                              padding: '4px'
+                            }}
+                            onChange={async (e) => {
+                              const tpValue = parseInt(e.target.value);
+                              if (tpValue >= 3 && tpValue <= 20) {
+                                try {
+                                  const response = await fetch(`/api/trade/${trade.trade_id}/update-tp?take_profit=${tpValue}`, {
+                                    method: 'POST'
+                                  });
+                                  if (response.ok) {
+                                    console.log(`TP updated for trade ${trade.trade_id}: ${tpValue} pips`);
+                                  }
+                                } catch (error) {
+                                  console.error('Error updating TP:', error);
+                                }
+                              }
+                            }}
+                          />
+                          <Typography variant="caption" sx={{ fontSize: '0.6rem', color: '#00ff88' }}>
+                            TP
+                          </Typography>
+                          <input
+                            type="number"
+                            min="5"
+                            max="50"
+                            step="1"
+                            defaultValue={trade.stop_loss || 15}
+                            style={{
+                              width: '50px',
+                              height: '28px',
+                              fontSize: '0.7rem',
+                              textAlign: 'center',
+                              backgroundColor: '#333',
+                              color: '#fff',
+                              border: '1px solid #555',
+                              borderRadius: '4px',
+                              padding: '4px'
+                            }}
+                            onChange={async (e) => {
+                              const slValue = parseInt(e.target.value);
+                              if (slValue >= 5 && slValue <= 50) {
+                                try {
+                                  const response = await fetch(`/api/trade/${trade.trade_id}/update-sl?stop_loss=${slValue}`, {
+                                    method: 'POST'
+                                  });
+                                  if (response.ok) {
+                                    console.log(`SL updated for trade ${trade.trade_id}: ${slValue} pips`);
+                                  }
+                                } catch (error) {
+                                  console.error('Error updating SL:', error);
+                                }
+                              }
+                            }}
+                          />
+                          <Typography variant="caption" sx={{ fontSize: '0.6rem', color: '#ff4444' }}>
+                            SL
+                          </Typography>
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            onClick={() => handleCloseTrade(trade.trade_id)}
+                            sx={{ fontSize: '0.6rem', padding: '2px 6px', minHeight: '24px' }}
+                          >
+                            CLOSE
+                          </Button>
+                        </Box>
                       </Box>
                     </Box>
                   ))}
@@ -297,10 +384,14 @@ const TradingDashboard = ({ tradingParams, setTradingParams, overlaySettings, se
             {/* Account Status */}
             <AccountStatus status={accountStatus} trades={trades} />
 
-            {/* Zero Lag Controls */}
-            <ZeroLagControls
+            {/* Strategy Controls */}
+            <StrategyTabs
               tradingParams={tradingParams}
               setTradingParams={setTradingParams}
+              polynomialParams={polynomialParams}
+              setPolynomialParams={setPolynomialParams}
+              strategyToggles={strategyToggles}
+              setStrategyToggles={setStrategyToggles}
             />
           </Box>
         </Grid>
