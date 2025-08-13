@@ -35,7 +35,7 @@ class DataService:
         response = {
             "all_candles": [candle.tolist() for candle in all_candles],
             "eff_data": eff_data,
-            "std_devs": np.std(zlema_ohlc_data, axis=0).tolist(),
+            "std_devs": (np.std(zlema_ohlc_data, axis=0) * Config.PIP_MULTIPLIER).tolist(),
             "medians": median_values.tolist(),
             "rsi_data": rsi_data,
             "pair": pair,

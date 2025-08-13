@@ -19,7 +19,8 @@ const DEFAULT_TRADING_PARAMS = {
   periods: 48,
   units: 10000,
   window_lengths: DEFAULT_WINDOW_LENGTHS,
-  strategy: 'classic'
+  strategy: 'classic',
+  volatility_threshold: 0.5
 };
 
 // Default overlay settings

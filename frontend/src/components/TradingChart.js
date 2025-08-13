@@ -2,7 +2,7 @@ import React from 'react';
 import Plot from 'react-plotly.js';
 import { Box, Typography } from '@mui/material';
 
-const TradingChart = ({ marketData, keyLevels, polynomialPredictions, overlaySettings, currentPrice, strategyToggles }) => {
+const TradingChart = ({ marketData, keyLevels, polynomialPredictions, overlaySettings, currentPrice, strategyToggles, tradingParams }) => {
   if (!marketData || !marketData.all_candles) {
     return <Typography>Loading chart...</Typography>;
   }
@@ -144,24 +144,51 @@ const TradingChart = ({ marketData, keyLevels, polynomialPredictions, overlaySet
       showlegend: false
     });
 
-    // Add arrows for ZLEMA color changes
+    // Add arrows for ZLEMA1 RSI + Standard Deviation signals
     const arrowUpX = [], arrowUpY = [];
     const arrowDownX = [], arrowDownY = [];
 
-    for (let i = 1; i < closePrices.length; i++) {
-      const prevIsGreen = closePrices[i - 1] > medians[i - 1];
-      const currIsGreen = closePrices[i] > medians[i];
+    // Calculate mean RSI across all candle sets
+    const { rsi_data, std_devs } = marketData;
 
-      // Red to Green transition (bullish) - green up arrow at candle low (buy signal)
-      if (!prevIsGreen && currIsGreen) {
-        arrowUpX.push(i);
-        arrowUpY.push(all_candles[0][3][i]); // Use candle low for buy
-      }
+    if (rsi_data && rsi_data.length > 0 && std_devs && std_devs.length > 0) {
+      for (let i = 1; i < std_devs.length; i++) {
+        // Calculate mean RSI across all candle sets for current period
+        let totalRSI = 0;
+        let validRSICount = 0;
 
-      // Green to Red transition (bearish) - red down arrow at candle high (sell signal)
-      if (prevIsGreen && !currIsGreen) {
-        arrowDownX.push(i);
-        arrowDownY.push(all_candles[0][2][i]); // Use candle high for sell
+        for (let setIdx = 0; setIdx < rsi_data.length; setIdx++) {
+          if (i < rsi_data[setIdx].length && !isNaN(rsi_data[setIdx][i])) {
+            totalRSI += rsi_data[setIdx][i];
+            validRSICount++;
+          }
+        }
+
+        const meanRSI = validRSICount > 0 ? totalRSI / validRSICount : 50;
+        const currentSD = std_devs[i];
+        const previousSD = std_devs[i - 1];
+
+        // Signal conditions: SD > previous SD AND SD > volatility threshold
+        const volatilityThreshold = tradingParams?.volatility_threshold || 0.5;
+        const sdCondition = currentSD > previousSD && currentSD > volatilityThreshold;
+
+        // Median line conditions (closing price vs median)
+        const currentClose = closePrices[i];
+        const currentMedian = medians[i];
+        const isAboveMedian = currentClose > currentMedian;
+        const isBelowMedian = currentClose < currentMedian;
+
+        // BUY: mean RSI > 50 AND SD conditions AND close above median
+        if (meanRSI > 50 && sdCondition && isAboveMedian) {
+          arrowUpX.push(i);
+          arrowUpY.push(all_candles[0][3][i]); // Use candle low for buy
+        }
+
+        // SELL: mean RSI < 50 AND SD conditions AND close below median
+        if (meanRSI < 50 && sdCondition && isBelowMedian) {
+          arrowDownX.push(i);
+          arrowDownY.push(all_candles[0][2][i]); // Use candle high for sell
+        }
       }
     }
 

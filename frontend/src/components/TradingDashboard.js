@@ -180,13 +180,30 @@ const TradingDashboard = ({ tradingParams, setTradingParams, overlaySettings, se
     fetchPolynomialPredictions();
   }, [polynomialParams]);
 
-  // Immediate refresh when window_lengths change (for responsiveness)
+  // Debounced refresh for window_lengths changes (to avoid too many API calls)
+  const [windowLengthsDebounced, setWindowLengthsDebounced] = useState(tradingParams.window_lengths);
+
   useEffect(() => {
-    if (tradingParams.window_lengths && Array.isArray(tradingParams.window_lengths)) {
+    const timeoutId = setTimeout(() => {
+      setWindowLengthsDebounced(tradingParams.window_lengths);
+    }, 800); // 800ms debounce - wait for user to stop typing
+
+    return () => clearTimeout(timeoutId);
+  }, [tradingParams.window_lengths]);
+
+  useEffect(() => {
+    if (windowLengthsDebounced && Array.isArray(windowLengthsDebounced)) {
       fetchMarketData();
       fetchKeyLevels();
     }
-  }, [tradingParams.window_lengths]);
+  }, [windowLengthsDebounced]);
+
+  // Force immediate chart re-render for volatility threshold (no API call needed)
+  const [chartKey, setChartKey] = useState(0);
+  useEffect(() => {
+    // Immediate re-render for parameters that only affect frontend logic
+    setChartKey(prev => prev + 1);
+  }, [tradingParams.volatility_threshold]);
 
   const handleTrade = async (direction, size) => {
     try {
@@ -246,13 +263,14 @@ const TradingDashboard = ({ tradingParams, setTradingParams, overlaySettings, se
                   </Box>
                 ) : marketData ? (
                   <TradingChart
+                    key={chartKey}
                     marketData={marketData}
                     keyLevels={keyLevels}
                     polynomialPredictions={strategyToggles.polynomial ? polynomialPredictions : null}
                     overlaySettings={overlaySettings}
                     currentPrice={currentPrice}
                     strategyToggles={strategyToggles}
-
+                    tradingParams={tradingParams}
                   />
                 ) : (
                   <Typography>No market data available</Typography>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
     Paper,
     Tabs,
@@ -50,12 +50,30 @@ const StrategyTabs = ({
 
     const handleWindowLengthChange = (index, value) => {
         const numValue = parseInt(value);
-        if (isNaN(numValue) || numValue < 3 || numValue > 200) return;
+        if (isNaN(numValue)) return;
+
+        // Clamp value to valid range
+        const clampedValue = Math.max(3, Math.min(200, numValue));
 
         const newWindowLengths = [...(tradingParams.window_lengths || DEFAULT_WINDOW_LENGTHS)];
-        newWindowLengths[index] = numValue;
+        newWindowLengths[index] = clampedValue;
+
         handleParamChange('window_lengths', newWindowLengths);
     };
+
+
+
+    const handleVolatilityThresholdChange = useCallback((value) => {
+        const numValue = parseFloat(value);
+        if (isNaN(numValue)) return;
+
+        // Clamp value to valid range
+        const clampedValue = Math.max(0, Math.min(10, numValue));
+
+        handleParamChange('volatility_threshold', clampedValue);
+    }, [handleParamChange, tradingParams.volatility_threshold]);
+
+
 
     const renderSelect = (value, onChange, options, isNumeric = false) => (
         <FormControl size="small" fullWidth>
@@ -125,7 +143,7 @@ const StrategyTabs = ({
                     {strategyToggles?.zlema1 && (
                         <>
                             <Grid item xs={12}>
-                                <Typography variant="body2" sx={{ fontSize: '0.65rem', color: 'text.secondary', mb: 0.5 }}>
+                                <Typography variant="body2" sx={{ fontSize: '0.75rem', color: 'text.secondary', mb: 1, fontWeight: 500 }}>
                                     Window Lengths (3-200):
                                 </Typography>
                             </Grid>
@@ -140,16 +158,40 @@ const StrategyTabs = ({
                                             min: 3,
                                             max: 200,
                                             step: 1,
-                                            style: { fontSize: '0.65rem', textAlign: 'center' }
+                                            style: { fontSize: '0.75rem', textAlign: 'center' }
                                         }}
                                         sx={{
                                             '& .MuiInputBase-root': {
-                                                height: '28px'
+                                                height: '36px'
                                             }
                                         }}
                                     />
                                 </Grid>
                             ))}
+                            <Grid item xs={12}>
+                                <Typography variant="body2" sx={{ fontSize: '0.75rem', color: 'text.secondary', mt: 2, mb: 1, fontWeight: 500 }}>
+                                    Min Volatility Threshold (pips):
+                                </Typography>
+                            </Grid>
+                            <Grid item xs={4}>
+                                <TextField
+                                    size="small"
+                                    type="number"
+                                    value={tradingParams.volatility_threshold || 0.5}
+                                    onChange={(e) => handleVolatilityThresholdChange(e.target.value)}
+                                    inputProps={{
+                                        min: 0,
+                                        max: 10,
+                                        step: 0.1,
+                                        style: { fontSize: '0.75rem', textAlign: 'center' }
+                                    }}
+                                    sx={{
+                                        '& .MuiInputBase-root': {
+                                            height: '36px'
+                                        }
+                                    }}
+                                />
+                            </Grid>
                         </>
                     )}
                 </Grid>
