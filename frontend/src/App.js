@@ -9,13 +9,16 @@ import TradingDashboard from './components/TradingDashboard';
 import BacktestPage from './components/BacktestPage';
 import Navigation from './components/Navigation';
 
+// Default window lengths (exported for consistency)
+export const DEFAULT_WINDOW_LENGTHS = [3, 12, 24, 36, 48];
+
 // Default trading parameters
 const DEFAULT_TRADING_PARAMS = {
   pair: "GBP_USD",
   timeframe: "M5",
   periods: 48,
   units: 10000,
-  window_lengths: [3, 12, 24, 36, 48],
+  window_lengths: DEFAULT_WINDOW_LENGTHS,
   strategy: 'classic'
 };
 

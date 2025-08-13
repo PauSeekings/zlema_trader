@@ -20,11 +20,11 @@ class DataService:
         
         # Calculate indicators
         ha = calc_HA(display_data)
-        ha_zlema_list = [zlema_ochl(ha[:4], window) for window in window_lengths]
+        #ha_zlema_list = [zlema_ochl(ha[:4], window) for window in window_lengths]
         zlema_list = [zlema_ochl(display_data[:4], window) for window in window_lengths]
         
         # Calculate RSI and efficiency for all candle data
-        all_candles =  [ ha ]+ ha_zlema_list + zlema_list
+        all_candles = [ha] + zlema_list
         rsi_data = [calc_rsi(candle_data[:4], Config.RSI_WINDOW).tolist() for candle_data in all_candles]
         eff_data = [market_eff(candle_data[:4], Config.EFFICIENCY_WINDOW).tolist() for candle_data in all_candles]
         
@@ -79,11 +79,11 @@ class DataService:
             
             # Calculate indicators (same as market data)
             ha = calc_HA(display_data)
-            ha_zlema_list = [zlema_ochl(ha[:4], window) for window in [3,12,24,36,48]]
+            #ha_zlema_list = [zlema_ochl(ha[:4], window) for window in [3,12,24,36,48]]
             zlema_list = [zlema_ochl(display_data[:4], window) for window in [3,12,24,36,48]]
             
             # Combine all candles (raw + HA ZLEMA + ZLEMA)
-            all_candles = [display_data] + ha_zlema_list + zlema_list
+            all_candles = [ha] + zlema_list
             
             # Calculate median across all candles for each time point
             # Extract OHLC data from each candle and stack them

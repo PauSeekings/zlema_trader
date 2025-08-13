@@ -10,9 +10,11 @@ import {
     Grid,
     FormControl,
     Select,
-    MenuItem
+    MenuItem,
+    TextField
 } from '@mui/material';
 import { commonStyles } from '../theme';
+import { DEFAULT_WINDOW_LENGTHS } from '../App';
 
 const ZL_LENGTH_OPTIONS = [10, 12, 15, 20, 24, 30, 36, 40, 48, 50, 60, 70, 80, 100, 120, 150, 200];
 const POLYNOMIAL_DEGREES = [1, 2, 3, 4, 5];
@@ -44,6 +46,15 @@ const StrategyTabs = ({
         if (strategy === 'zero_lag') {
             handleParamChange('strategy', checked ? 'zero_lag' : 'classic');
         }
+    };
+
+    const handleWindowLengthChange = (index, value) => {
+        const numValue = parseInt(value);
+        if (isNaN(numValue) || numValue < 3 || numValue > 200) return;
+
+        const newWindowLengths = [...(tradingParams.window_lengths || DEFAULT_WINDOW_LENGTHS)];
+        newWindowLengths[index] = numValue;
+        handleParamChange('window_lengths', newWindowLengths);
     };
 
     const renderSelect = (value, onChange, options, isNumeric = false) => (
@@ -111,11 +122,36 @@ const StrategyTabs = ({
                             sx={{ m: 0 }}
                         />
                     </Grid>
-                    <Grid item xs={12}>
-                        <Typography variant="body2" sx={{ fontSize: '0.65rem', color: 'text.secondary' }}>
-                            Original ZLEMA strategy with multiple window lengths
-                        </Typography>
-                    </Grid>
+                    {strategyToggles?.zlema1 && (
+                        <>
+                            <Grid item xs={12}>
+                                <Typography variant="body2" sx={{ fontSize: '0.65rem', color: 'text.secondary', mb: 0.5 }}>
+                                    Window Lengths (3-200):
+                                </Typography>
+                            </Grid>
+                            {(tradingParams.window_lengths || DEFAULT_WINDOW_LENGTHS).map((length, index) => (
+                                <Grid item xs={2.4} key={index}>
+                                    <TextField
+                                        size="small"
+                                        type="number"
+                                        value={length}
+                                        onChange={(e) => handleWindowLengthChange(index, e.target.value)}
+                                        inputProps={{
+                                            min: 3,
+                                            max: 200,
+                                            step: 1,
+                                            style: { fontSize: '0.65rem', textAlign: 'center' }
+                                        }}
+                                        sx={{
+                                            '& .MuiInputBase-root': {
+                                                height: '28px'
+                                            }
+                                        }}
+                                    />
+                                </Grid>
+                            ))}
+                        </>
+                    )}
                 </Grid>
             </TabPanel>
 

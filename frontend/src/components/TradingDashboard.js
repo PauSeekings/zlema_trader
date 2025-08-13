@@ -14,6 +14,7 @@ import TradeControls from './TradeControls';
 import StrategyTabs from './StrategyTabs';
 import AccountStatus from './AccountStatus';
 import CollapsibleSidebar from './CollapsibleSidebar';
+import { DEFAULT_WINDOW_LENGTHS } from '../App';
 
 const TradingDashboard = ({ tradingParams, setTradingParams, overlaySettings, setOverlaySettings, polynomialParams, setPolynomialParams, strategyToggles, setStrategyToggles }) => {
   const [marketData, setMarketData] = useState(null);
@@ -37,7 +38,9 @@ const TradingDashboard = ({ tradingParams, setTradingParams, overlaySettings, se
       }
       const params = {
         ...tradingParams,
-        window_lengths: '3,12,24,36,48',
+        window_lengths: Array.isArray(tradingParams.window_lengths)
+          ? tradingParams.window_lengths.join(',')
+          : (tradingParams.window_lengths || DEFAULT_WINDOW_LENGTHS.join(',')),
         zl_length: tradingParams.zl_length || 70
       };
       console.log('API params:', params);
@@ -176,6 +179,14 @@ const TradingDashboard = ({ tradingParams, setTradingParams, overlaySettings, se
   useEffect(() => {
     fetchPolynomialPredictions();
   }, [polynomialParams]);
+
+  // Immediate refresh when window_lengths change (for responsiveness)
+  useEffect(() => {
+    if (tradingParams.window_lengths && Array.isArray(tradingParams.window_lengths)) {
+      fetchMarketData();
+      fetchKeyLevels();
+    }
+  }, [tradingParams.window_lengths]);
 
   const handleTrade = async (direction, size) => {
     try {

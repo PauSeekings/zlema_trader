@@ -36,58 +36,71 @@ const TradingChart = ({ marketData, keyLevels, polynomialPredictions, overlaySet
   // Plot candlesticks based on strategy toggles
   const isZeroLag = Boolean(marketData.zl) && (strategyToggles?.zero_lag === true);
 
-  if (isZeroLag) {
-    // Only plot the first candlestick set when Zero Lag is active
-    const candle = all_candles[0];
-    data.push({
-      type: 'candlestick',
-      x: xAxis,
-      open: candle[0],
-      high: candle[2],
-      low: candle[3],
-      close: candle[1],
-      opacity: 0.3, // Slightly faded to let ZL overlay stand out
-      xaxis: 'x',
-      yaxis: 'y',
-      layer: 'above',
-      showlegend: false
-    });
-  } else {
-    // Always plot basic candlesticks (first dataset only)
-    const candle = all_candles[0];
-    data.push({
-      type: 'candlestick',
-      x: xAxis,
-      open: candle[0],
-      high: candle[2],
-      low: candle[3],
-      close: candle[1],
-      opacity: 0.7,
-      xaxis: 'x',
-      yaxis: 'y',
-      layer: 'above',
-      showlegend: false
-    });
+  // ALWAYS plot ribbons first (background)
+  if (!isZeroLag) {
+    // FIRST: Plot ribbons in background (plotted first = behind everything)
+    // TEST: Plot remaining timeframes as filled ribbons between open and close
+    all_candles.slice(1).forEach((candle, index) => {
+      const openPrices = candle[0];
+      const closePrices = candle[1];
+      const opacity = 0.2
+      // DEBUG: Log first few points to console
+      if (index === 0) {
+        console.log('DEBUG: First 5 points of first ZLEMA timeframe:');
+        for (let i = 0; i < Math.min(5, openPrices.length); i++) {
+          const isBullish = closePrices[i] >= openPrices[i];
+          console.log(`Point ${i}: Open=${openPrices[i]}, Close=${closePrices[i]}, Bullish=${isBullish}`);
+        }
+      }
 
-    // If Zlema1 is enabled, show additional ZLEMA candlesticks
-    if (strategyToggles?.zlema1 === true) {
-      all_candles.slice(1).forEach((candle, index) => {
+      // Simpler approach: Plot each point individually with correct color
+      for (let i = 0; i < openPrices.length - 1; i++) {
+        const currentBullish = closePrices[i] >= openPrices[i];
+        const nextBullish = closePrices[i + 1] >= openPrices[i + 1];
+
+        // Determine color for this segment
+        const color = currentBullish ?
+          `rgba(0,255,0,${opacity})` :  // Green for bullish
+          `rgba(255,0,0,${opacity})`;   // Red for bearish
+
+        // Create a small segment from current point to next point
+        const segmentX = [xAxis[i], xAxis[i + 1]];
+        const segmentOpen = [openPrices[i], openPrices[i + 1]];
+        const segmentClose = [closePrices[i], closePrices[i + 1]];
+
+        // Plot open prices (invisible baseline)
         data.push({
-          type: 'candlestick',
-          x: xAxis,
-          open: candle[0],
-          high: candle[2],
-          low: candle[3],
-          close: candle[1],
-          opacity: 0.1, // Additional ZLEMA candlesticks more transparent
+          type: 'scatter',
+          mode: 'lines',
+          x: segmentX,
+          y: segmentOpen,
+          line: { color: 'transparent' },
           xaxis: 'x',
           yaxis: 'y',
-          layer: 'above',
-          showlegend: false
+          showlegend: false,
+          hoverinfo: 'skip'
         });
-      });
-    }
+
+        // Plot close prices with fill (creates the ribbon)
+        data.push({
+          type: 'scatter',
+          mode: 'lines',
+          x: segmentX,
+          y: segmentClose,
+          fill: 'tonexty',
+          fillcolor: color,
+          line: { color: 'transparent' },
+          xaxis: 'x',
+          yaxis: 'y',
+          showlegend: false,
+          hoverinfo: 'skip'
+        });
+      }
+    });
+
   }
+
+  // NOTE: Candlesticks will be plotted at the very end after all other data
 
   // Add close price line with conditional coloring based on median (only for Zlema1)
   if (strategyToggles?.zlema1 === true && !isZeroLag && medians && all_candles[0][1]) {
@@ -161,7 +174,7 @@ const TradingChart = ({ marketData, keyLevels, polynomialPredictions, overlaySet
         y: arrowUpY,
         marker: {
           symbol: 'triangle-up',
-          size: 30,
+          size: 20,
           color: 'green'
         },
         xaxis: 'x',
@@ -180,7 +193,7 @@ const TradingChart = ({ marketData, keyLevels, polynomialPredictions, overlaySet
         y: arrowDownY,
         marker: {
           symbol: 'triangle-down',
-          size: 30,
+          size: 20,
           color: 'red'
         },
         xaxis: 'x',
@@ -414,7 +427,7 @@ const TradingChart = ({ marketData, keyLevels, polynomialPredictions, overlaySet
             width: 3, // Increased width for better visibility
             dash: dash
           },
-          opacity: 0.3, // Decreased opacity for subtle background appearance
+          opacity: 0.1, // Very subtle background appearance
           xaxis: 'x',
           yaxis: 'y',
           name: `${level.type} (${level.price.toFixed(4)})`,
@@ -808,8 +821,75 @@ const TradingChart = ({ marketData, keyLevels, polynomialPredictions, overlaySet
     });
   }
 
-  // Combine data with key levels first (behind everything), then candlesticks, then indicators
-  const combinedData = [...keyLevelsData, ...data, ...subplotData];
+  // PLOT CANDLESTICKS LAST - ABSOLUTE FINAL POSITION ON TOP OF EVERYTHING
+  const candlestickData = [];
+  const candle = all_candles[0];
+  const opens = candle[0];
+  const closes = candle[1];
+  const highs = candle[2];
+  const lows = candle[3];
+
+  // Plot wicks first
+  for (let i = 0; i < opens.length; i++) {
+    const wickColor = closes[i] >= opens[i] ? 'rgba(200,255,200,0.5)' : 'rgba(255,200,200,0.5)';
+    const bodyTop = Math.max(opens[i], closes[i]);
+    const bodyBottom = Math.min(opens[i], closes[i]);
+
+    // Upper wick (from body top to high)
+    if (highs[i] > bodyTop) {
+      candlestickData.push({
+        type: 'scatter',
+        mode: 'lines',
+        x: [xAxis[i], xAxis[i]],
+        y: [bodyTop, highs[i]],
+        line: { color: wickColor, width: 1 },
+        xaxis: 'x',
+        yaxis: 'y',
+        showlegend: false,
+        hoverinfo: 'skip'
+      });
+    }
+
+    // Lower wick (from body bottom to low)
+    if (lows[i] < bodyBottom) {
+      candlestickData.push({
+        type: 'scatter',
+        mode: 'lines',
+        x: [xAxis[i], xAxis[i]],
+        y: [bodyBottom, lows[i]],
+        line: { color: wickColor, width: 1 },
+        xaxis: 'x',
+        yaxis: 'y',
+        showlegend: false,
+        hoverinfo: 'skip'
+      });
+    }
+  }
+
+  // Plot hollow bodies
+  for (let i = 0; i < opens.length; i++) {
+    const isBullish = closes[i] >= opens[i];
+    const bodyColor = isBullish ? 'rgba(100,255,100,0.5)' : 'rgba(255,100,100,0.5)';
+    const bodyTop = Math.max(opens[i], closes[i]);
+    const bodyBottom = Math.min(opens[i], closes[i]);
+
+    // Create hollow rectangle for candle body (outline only)
+    const candleWidth = 0.4;
+    candlestickData.push({
+      type: 'scatter',
+      mode: 'lines',
+      x: [xAxis[i] - candleWidth, xAxis[i] + candleWidth, xAxis[i] + candleWidth, xAxis[i] - candleWidth, xAxis[i] - candleWidth],
+      y: [bodyBottom, bodyBottom, bodyTop, bodyTop, bodyBottom],
+      line: { color: bodyColor, width: 1 },
+      xaxis: 'x',
+      yaxis: 'y',
+      showlegend: false,
+      hoverinfo: 'skip'
+    });
+  }
+
+  // Combine data: key levels first, then ribbons/indicators, then candlesticks LAST
+  const combinedData = [...keyLevelsData, ...data, ...subplotData, ...candlestickData];
 
   console.log('Main data:', data);
   console.log('Subplot data:', subplotData);
