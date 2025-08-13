@@ -101,10 +101,7 @@ const MarketStatus = () => {
                     width: '320px', // Slightly wider for single line
                     minWidth: '320px',
                     px: 2,
-                    py: 0.5, // Reduced padding for compact height
-                    bgcolor: 'rgba(0, 255, 136, 0.1)',
-                    borderRadius: 2,
-                    border: '1px solid rgba(0, 255, 136, 0.3)'
+                    py: 0.5 // Reduced padding for compact height
                 }}>
                     <Typography sx={{
                         color: '#00ff88',

@@ -17,6 +17,7 @@ from services.trading_service import TradingService
 from services.news_service import NewsService
 from services.backtest_service import BacktestService
 from services.market_status_service import MarketStatusService
+# from services.probability_service import ProbabilityService
 from libs.tradelib import connect, get_price
 
 # Initialize FastAPI app
@@ -39,6 +40,7 @@ trading_service = None
 news_service = NewsService()
 backtest_service = None
 market_status_service = MarketStatusService()
+# probability_service = None
 
 @app.on_event("startup")
 async def startup_event():
@@ -48,6 +50,7 @@ async def startup_event():
     data_service = DataService(exchange)
     trading_service = TradingService(exchange, account_id)
     backtest_service = BacktestService(exchange)
+    # probability_service = ProbabilityService(exchange)
 
 # Error handler
 @app.exception_handler(Exception)
@@ -90,12 +93,13 @@ async def get_market_data(
     periods: int = Config.DEFAULT_PERIODS,
     window_lengths: str = "3,12,24,36,48",
     strategy: str = "classic",
-    zl_length: int = 70
+    zl_length: int = 70,
+    probability_tp: float = 5
 ):
     """Get market data with technical indicators"""
     try:
         windows = [int(x) for x in window_lengths.split(",")]
-        return data_service.get_market_data(pair, timeframe, periods, windows, strategy, zl_length)
+        return data_service.get_market_data(pair, timeframe, periods, windows, strategy, zl_length, probability_tp)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -257,6 +261,30 @@ async def get_market_events():
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch market events: {str(e)}")
+
+# Probability endpoints temporarily disabled
+# @app.get("/api/signal-probabilities")
+# async def get_signal_probabilities(
+#     pair: str = Config.DEFAULT_PAIR,
+#     timeframe: str = Config.DEFAULT_TIMEFRAME,
+#     days_back: int = 30
+# ):
+#     """Get probability analysis for trading signals"""
+#     try:
+#         return probability_service.calculate_signal_probabilities(pair, timeframe, days_back)
+#     except Exception as e:
+#         raise HTTPException(status_code=500, detail=f"Failed to calculate probabilities: {str(e)}")
+
+# @app.get("/api/current-probabilities")
+# async def get_current_probabilities(
+#     pair: str = Config.DEFAULT_PAIR,
+#     timeframe: str = Config.DEFAULT_TIMEFRAME
+# ):
+#     """Get cached probabilities for current trading session"""
+#     try:
+#         return probability_service.get_current_signal_probabilities(pair, timeframe)
+#     except Exception as e:
+#         raise HTTPException(status_code=500, detail=f"Failed to get current probabilities: {str(e)}")
 
 if __name__ == "__main__":
     uvicorn.run(app, host=Config.HOST, port=Config.PORT)

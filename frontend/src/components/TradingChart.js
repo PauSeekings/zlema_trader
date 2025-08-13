@@ -42,6 +42,9 @@ const TradingChart = memo(({ marketData, keyLevels, polynomialPredictions, overl
   // Plot candlesticks based on strategy toggles
   const isZeroLag = Boolean(marketData.zl) && (strategyToggles?.zero_lag === true);
 
+  // Get signal probabilities if available
+  const signalProbabilities = marketData.signal_probabilities;
+
   // ALWAYS plot ribbons first (background)
   if (!isZeroLag) {
     // FIRST: Plot ribbons in background (plotted first = behind everything)
@@ -208,6 +211,32 @@ const TradingChart = memo(({ marketData, keyLevels, polynomialPredictions, overl
         layer: 'above',
         showlegend: false
       });
+
+      // Add running win rate labels below buy signals
+      if (signalProbabilities?.bull_entry_probability) {
+        const totalSignals = signalProbabilities.bull_entry_probability.total_signals;
+        const successfulSignals = signalProbabilities.bull_entry_probability.successful_signals;
+
+        arrowUpX.forEach((x, idx) => {
+          // Calculate running win rate: successful signals up to this point / total signals up to this point
+          const signalsUpToHere = idx + 1;
+          const winsUpToHere = Math.round((successfulSignals / totalSignals) * signalsUpToHere);
+          const runningWinRate = (winsUpToHere / signalsUpToHere) * 100;
+
+          data.push({
+            type: 'scatter',
+            mode: 'text',
+            x: [x],
+            y: [arrowUpY[idx] - 0.0005],
+            text: [`${runningWinRate.toFixed(1)}%`],
+            textfont: { color: 'green', size: 10, family: 'Arial Black' },
+            xaxis: 'x',
+            yaxis: 'y',
+            showlegend: false,
+            hoverinfo: 'skip'
+          });
+        });
+      }
     }
 
     // Add red down arrows (bearish signals)
@@ -227,6 +256,32 @@ const TradingChart = memo(({ marketData, keyLevels, polynomialPredictions, overl
         layer: 'above',
         showlegend: false
       });
+
+      // Add running win rate labels above sell signals
+      if (signalProbabilities?.bear_entry_probability) {
+        const totalSignals = signalProbabilities.bear_entry_probability.total_signals;
+        const successfulSignals = signalProbabilities.bear_entry_probability.successful_signals;
+
+        arrowDownX.forEach((x, idx) => {
+          // Calculate running win rate: successful signals up to this point / total signals up to this point
+          const signalsUpToHere = idx + 1;
+          const winsUpToHere = Math.round((successfulSignals / totalSignals) * signalsUpToHere);
+          const runningWinRate = (winsUpToHere / signalsUpToHere) * 100;
+
+          data.push({
+            type: 'scatter',
+            mode: 'text',
+            x: [x],
+            y: [arrowDownY[idx] + 0.0005],
+            text: [`${runningWinRate.toFixed(1)}%`],
+            textfont: { color: 'red', size: 10, family: 'Arial Black' },
+            xaxis: 'x',
+            yaxis: 'y',
+            showlegend: false,
+            hoverinfo: 'skip'
+          });
+        });
+      }
     }
   }
 
@@ -308,6 +363,25 @@ const TradingChart = memo(({ marketData, keyLevels, polynomialPredictions, overl
         yaxis: 'y',
         name: 'Bullish Trend Change'
       });
+
+      // Add probability labels above trend bull signals
+      if (signalProbabilities?.trend_up_probability?.probability > 0) {
+        const probText = `${signalProbabilities.trend_up_probability.probability}%`;
+        trendBullX.forEach((x, idx) => {
+          data.push({
+            type: 'scatter',
+            mode: 'text',
+            x: [x],
+            y: [trendBullY[idx] + 0.001], // Above the larger trend signal
+            text: [probText],
+            textfont: { color: 'rgba(0,255,187,1.0)', size: 12, family: 'Arial Black' },
+            xaxis: 'x',
+            yaxis: 'y',
+            showlegend: false,
+            hoverinfo: 'skip'
+          });
+        });
+      }
     }
 
     if (trendBearX.length > 0) {
@@ -321,6 +395,25 @@ const TradingChart = memo(({ marketData, keyLevels, polynomialPredictions, overl
         yaxis: 'y',
         name: 'Bearish Trend Change'
       });
+
+      // Add probability labels below trend bear signals
+      if (signalProbabilities?.trend_down_probability?.probability > 0) {
+        const probText = `${signalProbabilities.trend_down_probability.probability}%`;
+        trendBearX.forEach((x, idx) => {
+          data.push({
+            type: 'scatter',
+            mode: 'text',
+            x: [x],
+            y: [trendBearY[idx] - 0.001], // Below the larger trend signal
+            text: [probText],
+            textfont: { color: 'rgba(255,17,0,1.0)', size: 12, family: 'Arial Black' },
+            xaxis: 'x',
+            yaxis: 'y',
+            showlegend: false,
+            hoverinfo: 'skip'
+          });
+        });
+      }
     }
 
     // Entry markers (small arrows - size.tiny in Pine)
@@ -348,6 +441,25 @@ const TradingChart = memo(({ marketData, keyLevels, polynomialPredictions, overl
         yaxis: 'y',
         name: 'Bull Entry'
       });
+
+      // Add probability labels above bull entry signals
+      if (signalProbabilities?.bull_entry_probability?.probability > 0) {
+        const probText = `${signalProbabilities.bull_entry_probability.probability}%`;
+        bullX.forEach((x, idx) => {
+          data.push({
+            type: 'scatter',
+            mode: 'text',
+            x: [x],
+            y: [bullY[idx] + 0.0005], // Slightly above the signal
+            text: [probText],
+            textfont: { color: 'rgba(0,255,187,1.0)', size: 10, family: 'Arial Black' },
+            xaxis: 'x',
+            yaxis: 'y',
+            showlegend: false,
+            hoverinfo: 'skip'
+          });
+        });
+      }
     }
 
     if (bearX.length > 0) {
@@ -361,6 +473,25 @@ const TradingChart = memo(({ marketData, keyLevels, polynomialPredictions, overl
         yaxis: 'y',
         name: 'Bear Entry'
       });
+
+      // Add probability labels below bear entry signals
+      if (signalProbabilities?.bear_entry_probability?.probability > 0) {
+        const probText = `${signalProbabilities.bear_entry_probability.probability}%`;
+        bearX.forEach((x, idx) => {
+          data.push({
+            type: 'scatter',
+            mode: 'text',
+            x: [x],
+            y: [bearY[idx] - 0.0005], // Slightly below the signal
+            text: [probText],
+            textfont: { color: 'rgba(255,17,0,1.0)', size: 10, family: 'Arial Black' },
+            xaxis: 'x',
+            yaxis: 'y',
+            showlegend: false,
+            hoverinfo: 'skip'
+          });
+        });
+      }
     }
   }
 
@@ -934,6 +1065,7 @@ const TradingChart = memo(({ marketData, keyLevels, polynomialPredictions, overl
         style={{ width: '100%', height: '100%' }}
         useResizeHandler={true}
         onError={(error) => console.error('Plotly error:', error)}
+        revision={0}
       />
     </Box>
   );

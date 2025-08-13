@@ -13,7 +13,7 @@ class DataService(BaseService):
     def get_service_name(self) -> str:
         return "DataService"
     
-    def get_market_data(self, pair: str, timeframe: str, periods: int, window_lengths: List[int], strategy: str = "classic", zl_length: int = 12) -> Dict[str, Any]:
+    def get_market_data(self, pair: str, timeframe: str, periods: int, window_lengths: List[int], strategy: str = "classic", zl_length: int = 12, probability_tp: float = 5) -> Dict[str, Any]:
         """Get comprehensive market data with indicators"""
         # Get price data and scale to pips
         n_candles = periods + 50
@@ -46,6 +46,27 @@ class DataService(BaseService):
         
         response = self.create_response(data, pair=pair, timeframe=timeframe, periods=periods)
 
+        # Add signal probabilities for all strategies using existing chart data (cached)
+        cache_key = f"{pair}_{timeframe}_{periods}_{strategy}_{probability_tp}"
+        if not hasattr(self, '_prob_cache'):
+            self._prob_cache = {}
+            
+        if cache_key in self._prob_cache:
+            response["signal_probabilities"] = self._prob_cache[cache_key]
+        else:
+            try:
+                from .probability_service import ProbabilityService
+                prob_service = ProbabilityService(self.exchange)
+                prob_data = prob_service.calculate_signal_probabilities_from_chart_data(
+                    all_candles, median_values, None, probability_tp
+                )
+                if not prob_data.get('error'):
+                    self._prob_cache[cache_key] = prob_data
+                    response["signal_probabilities"] = prob_data
+            except Exception as e:
+                # Don't fail if probability calculation fails
+                pass
+
         # Optional Zero-Lag strategy overlay
         if strategy and strategy.lower() == "zero_lag":
             ochl = display_data[[0,1,2,3], :]  # [Open, Close, High, Low]
@@ -62,6 +83,8 @@ class DataService(BaseService):
                         response["zl"][k] = v_clean.tolist()
                 else:
                     response["zl"][k] = v
+            
+
 
         return response
     

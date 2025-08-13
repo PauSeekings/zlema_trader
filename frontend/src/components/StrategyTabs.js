@@ -1,4 +1,5 @@
 import React, { useState, useCallback } from 'react';
+import { Slider } from '@mui/material';
 import {
     Paper,
     Tabs,
@@ -27,7 +28,8 @@ const StrategyTabs = ({
     polynomialParams,
     setPolynomialParams,
     strategyToggles,
-    setStrategyToggles
+    setStrategyToggles,
+    marketData
 }) => {
     const [activeTab, setActiveTab] = useState(0);
 
@@ -48,18 +50,11 @@ const StrategyTabs = ({
         }
     };
 
-    const handleWindowLengthChange = (index, value) => {
-        const numValue = parseInt(value);
-        if (isNaN(numValue)) return;
-
-        // Clamp value to valid range
-        const clampedValue = Math.max(3, Math.min(200, numValue));
-
+    const handleWindowLengthChange = useCallback((index, value) => {
         const newWindowLengths = [...(tradingParams.window_lengths || DEFAULT_WINDOW_LENGTHS)];
-        newWindowLengths[index] = clampedValue;
-
+        newWindowLengths[index] = value;
         handleParamChange('window_lengths', newWindowLengths);
-    };
+    }, []);
 
 
 
@@ -71,7 +66,7 @@ const StrategyTabs = ({
         const clampedValue = Math.max(0, Math.min(10, numValue));
 
         handleParamChange('volatility_threshold', clampedValue);
-    }, [handleParamChange, tradingParams.volatility_threshold]);
+    }, []);
 
 
 
@@ -149,23 +144,46 @@ const StrategyTabs = ({
                             </Grid>
                             {(tradingParams.window_lengths || DEFAULT_WINDOW_LENGTHS).map((length, index) => (
                                 <Grid item xs={2.4} key={index}>
-                                    <TextField
-                                        size="small"
-                                        type="number"
-                                        value={length}
-                                        onChange={(e) => handleWindowLengthChange(index, e.target.value)}
-                                        inputProps={{
-                                            min: 3,
-                                            max: 200,
-                                            step: 1,
-                                            style: { fontSize: '0.75rem', textAlign: 'center' }
-                                        }}
-                                        sx={{
-                                            '& .MuiInputBase-root': {
-                                                height: '36px'
-                                            }
-                                        }}
-                                    />
+                                    <Box sx={{ px: 1 }}>
+                                        <Typography variant="caption" sx={{ fontSize: '0.6rem', color: '#aaa', display: 'block', textAlign: 'center', mb: 0.5 }}>
+                                            {length}
+                                        </Typography>
+                                        <Slider
+                                            value={Number(length) || 20}
+                                            onChange={(e, val) => {
+                                                if (val && !isNaN(val)) {
+                                                    handleWindowLengthChange(index, val);
+                                                }
+                                            }}
+                                            min={3}
+                                            max={200}
+                                            step={1}
+                                            size="small"
+                                            componentsProps={{
+                                                thumb: {
+                                                    onMouseDown: (e) => e.stopPropagation()
+                                                }
+                                            }}
+                                            sx={{
+                                                color: '#4caf50',
+                                                height: 4,
+                                                '& .MuiSlider-thumb': {
+                                                    width: 16,
+                                                    height: 16,
+                                                    backgroundColor: '#4caf50',
+                                                    '&:hover': {
+                                                        boxShadow: '0px 0px 0px 8px rgba(76, 175, 80, 0.16)',
+                                                    },
+                                                },
+                                                '& .MuiSlider-track': {
+                                                    backgroundColor: '#4caf50',
+                                                },
+                                                '& .MuiSlider-rail': {
+                                                    backgroundColor: '#555',
+                                                },
+                                            }}
+                                        />
+                                    </Box>
                                 </Grid>
                             ))}
                             <Grid item xs={12}>
@@ -173,24 +191,129 @@ const StrategyTabs = ({
                                     Min Volatility Threshold (pips):
                                 </Typography>
                             </Grid>
-                            <Grid item xs={4}>
-                                <TextField
-                                    size="small"
-                                    type="number"
-                                    value={tradingParams.volatility_threshold || 0.5}
-                                    onChange={(e) => handleVolatilityThresholdChange(e.target.value)}
-                                    inputProps={{
-                                        min: 0,
-                                        max: 10,
-                                        step: 0.1,
-                                        style: { fontSize: '0.75rem', textAlign: 'center' }
-                                    }}
-                                    sx={{
-                                        '& .MuiInputBase-root': {
-                                            height: '36px'
-                                        }
-                                    }}
-                                />
+                            <Grid item xs={8}>
+                                <Box sx={{ px: 2 }}>
+                                    <Typography variant="caption" sx={{ fontSize: '0.7rem', color: '#aaa', display: 'block', textAlign: 'center', mb: 0.5 }}>
+                                        {tradingParams.volatility_threshold || 0.5}
+                                    </Typography>
+                                    <Slider
+                                        value={Number(tradingParams.volatility_threshold) || 0.5}
+                                        onChange={(e, val) => {
+                                            if (val !== null && !isNaN(val)) {
+                                                handleParamChange('volatility_threshold', val);
+                                            }
+                                        }}
+                                        min={0}
+                                        max={10}
+                                        step={0.1}
+                                        size="small"
+                                        componentsProps={{
+                                            thumb: {
+                                                onMouseDown: (e) => e.stopPropagation()
+                                            }
+                                        }}
+                                        sx={{
+                                            color: '#ff9800',
+                                            height: 4,
+                                            '& .MuiSlider-thumb': {
+                                                width: 16,
+                                                height: 16,
+                                                backgroundColor: '#ff9800',
+                                                '&:hover': {
+                                                    boxShadow: '0px 0px 0px 8px rgba(255, 152, 0, 0.16)',
+                                                },
+                                            },
+                                            '& .MuiSlider-track': {
+                                                backgroundColor: '#ff9800',
+                                            },
+                                            '& .MuiSlider-rail': {
+                                                backgroundColor: '#555',
+                                            },
+                                        }}
+                                    />
+                                </Box>
+                            </Grid>
+                            <Grid item xs={12}>
+                                <Typography variant="body2" sx={{ fontSize: '0.75rem', color: 'text.secondary', mt: 2, mb: 1, fontWeight: 500 }}>
+                                    Probability TP (pips):
+                                </Typography>
+                            </Grid>
+                            <Grid item xs={8}>
+                                <Box sx={{ px: 2 }}>
+                                    <Typography variant="caption" sx={{ fontSize: '0.7rem', color: '#aaa', display: 'block', textAlign: 'center', mb: 0.5 }}>
+                                        {tradingParams.probability_tp || 5}
+                                    </Typography>
+                                    <Slider
+                                        value={Number(tradingParams.probability_tp) || 5}
+                                        onChange={(e, val) => {
+                                            if (val !== null && !isNaN(val)) {
+                                                handleParamChange('probability_tp', val);
+                                            }
+                                        }}
+                                        min={1}
+                                        max={100}
+                                        step={1}
+                                        size="small"
+                                        componentsProps={{
+                                            thumb: {
+                                                onMouseDown: (e) => e.stopPropagation()
+                                            }
+                                        }}
+                                        sx={{
+                                            color: '#2196f3',
+                                            height: 4,
+                                            '& .MuiSlider-thumb': {
+                                                width: 16,
+                                                height: 16,
+                                                backgroundColor: '#2196f3',
+                                                '&:hover': {
+                                                    boxShadow: '0px 0px 0px 8px rgba(33, 150, 243, 0.16)',
+                                                },
+                                            },
+                                            '& .MuiSlider-track': {
+                                                backgroundColor: '#2196f3',
+                                            },
+                                            '& .MuiSlider-rail': {
+                                                backgroundColor: '#555',
+                                            },
+                                        }}
+                                    />
+                                </Box>
+                            </Grid>
+                        </>
+                    )}
+
+                    {/* Win Rates Display */}
+                    {marketData?.signal_probabilities && (
+                        <>
+                            <Grid item xs={12}>
+                                <Typography variant="body2" sx={{ fontSize: '0.75rem', color: 'text.secondary', mt: 2, mb: 1, fontWeight: 500 }}>
+                                    Win Rates (5pip TP):
+                                </Typography>
+                            </Grid>
+                            <Grid item xs={6}>
+                                <Box sx={{
+                                    backgroundColor: 'rgba(0,255,136,0.1)',
+                                    padding: '4px 8px',
+                                    borderRadius: '4px',
+                                    border: '1px solid rgba(0,255,136,0.3)'
+                                }}>
+                                    <Typography variant="caption" sx={{ color: '#00ff88', fontSize: '0.7rem', fontWeight: 'bold' }}>
+                                        Buy: {marketData.signal_probabilities.bull_entry_probability?.probability || 0}%
+                                    </Typography>
+                                </Box>
+                            </Grid>
+                            <Grid item xs={6}>
+                                <Box sx={{
+                                    backgroundColor: 'rgba(255,68,68,0.1)',
+                                    padding: '4px 8px',
+                                    borderRadius: '4px',
+                                    border: '1px solid rgba(255,68,68,0.3)'
+                                }}>
+                                    <Typography variant="caption" sx={{ color: '#ff4444', fontSize: '0.7rem', fontWeight: 'bold' }}>
+                                        Sell: {marketData.signal_probabilities.bear_entry_probability?.probability || 0}%
+                                    </Typography>
+                                </Box>
                             </Grid>
                         </>
                     )}
@@ -215,15 +338,52 @@ const StrategyTabs = ({
                         />
                     </Grid>
                     {(strategyToggles?.zero_lag || tradingParams.strategy === 'zero_lag') && (
-                        <Grid item xs={6}>
-                            <Typography variant="body2" sx={{ fontSize: '0.65rem', mb: 0.5 }}>Length:</Typography>
-                            {renderSelect(
-                                tradingParams.zl_length || 70,
-                                (value) => handleParamChange('zl_length', value),
-                                ZL_LENGTH_OPTIONS,
-                                true
+                        <>
+                            <Grid item xs={6}>
+                                <Typography variant="body2" sx={{ fontSize: '0.65rem', mb: 0.5 }}>Length:</Typography>
+                                {renderSelect(
+                                    tradingParams.zl_length || 70,
+                                    (value) => handleParamChange('zl_length', value),
+                                    ZL_LENGTH_OPTIONS,
+                                    true
+                                )}
+                            </Grid>
+
+                            {/* Win Rates Display for Zero Lag */}
+                            {marketData?.signal_probabilities && (
+                                <>
+                                    <Grid item xs={12}>
+                                        <Typography variant="body2" sx={{ fontSize: '0.75rem', color: 'text.secondary', mt: 2, mb: 1, fontWeight: 500 }}>
+                                            Win Rates (5pip TP):
+                                        </Typography>
+                                    </Grid>
+                                    <Grid item xs={6}>
+                                        <Box sx={{
+                                            backgroundColor: 'rgba(0,255,187,0.1)',
+                                            padding: '4px 8px',
+                                            borderRadius: '4px',
+                                            border: '1px solid rgba(0,255,187,0.3)'
+                                        }}>
+                                            <Typography variant="caption" sx={{ color: '#00ffbb', fontSize: '0.7rem', fontWeight: 'bold' }}>
+                                                Buy: {marketData.signal_probabilities.bull_entry_probability?.probability || 0}%
+                                            </Typography>
+                                        </Box>
+                                    </Grid>
+                                    <Grid item xs={6}>
+                                        <Box sx={{
+                                            backgroundColor: 'rgba(255,17,0,0.1)',
+                                            padding: '4px 8px',
+                                            borderRadius: '4px',
+                                            border: '1px solid rgba(255,17,0,0.3)'
+                                        }}>
+                                            <Typography variant="caption" sx={{ color: '#ff1100', fontSize: '0.7rem', fontWeight: 'bold' }}>
+                                                Sell: {marketData.signal_probabilities.bear_entry_probability?.probability || 0}%
+                                            </Typography>
+                                        </Box>
+                                    </Grid>
+                                </>
                             )}
-                        </Grid>
+                        </>
                     )}
                 </Grid>
             </TabPanel>

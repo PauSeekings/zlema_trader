@@ -41,7 +41,8 @@ const TradingDashboard = memo(({ tradingParams, setTradingParams, overlaySetting
         window_lengths: Array.isArray(tradingParams.window_lengths)
           ? tradingParams.window_lengths.join(',')
           : (tradingParams.window_lengths || DEFAULT_WINDOW_LENGTHS.join(',')),
-        zl_length: tradingParams.zl_length || 70
+        zl_length: tradingParams.zl_length || 70,
+        probability_tp: tradingParams.probability_tp || 5
       };
       console.log('API params:', params);
       const response = await axios.get('/api/market-data', { params });
@@ -186,7 +187,7 @@ const TradingDashboard = memo(({ tradingParams, setTradingParams, overlaySetting
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       setWindowLengthsDebounced(tradingParams.window_lengths);
-    }, 800); // 800ms debounce - wait for user to stop typing
+    }, 300); // 300ms debounce - faster response
 
     return () => clearTimeout(timeoutId);
   }, [tradingParams.window_lengths]);
@@ -198,12 +199,7 @@ const TradingDashboard = memo(({ tradingParams, setTradingParams, overlaySetting
     }
   }, [windowLengthsDebounced]);
 
-  // Force immediate chart re-render for volatility threshold (no API call needed)
-  const [chartKey, setChartKey] = useState(0);
-  useEffect(() => {
-    // Immediate re-render for parameters that only affect frontend logic
-    setChartKey(prev => prev + 1);
-  }, [tradingParams.volatility_threshold]);
+  // Volatility threshold changes are handled directly in TradingChart component
 
   const handleTrade = async (direction, size) => {
     try {
@@ -263,7 +259,6 @@ const TradingDashboard = memo(({ tradingParams, setTradingParams, overlaySetting
                   </Box>
                 ) : marketData ? (
                   <TradingChart
-                    key={chartKey}
                     marketData={marketData}
                     keyLevels={keyLevels}
                     polynomialPredictions={strategyToggles.polynomial ? polynomialPredictions : null}
@@ -421,6 +416,7 @@ const TradingDashboard = memo(({ tradingParams, setTradingParams, overlaySetting
               setPolynomialParams={setPolynomialParams}
               strategyToggles={strategyToggles}
               setStrategyToggles={setStrategyToggles}
+              marketData={marketData}
             />
           </Box>
         </Grid>
